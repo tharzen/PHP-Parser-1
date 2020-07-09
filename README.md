@@ -27,8 +27,8 @@ The main features provided by this library are:
  * Builders to simplify AST construction for code generation.
  * Converting an AST into JSON and back.
 
-**Tharzen Quick Start**
-**-------------------**
+Tharzen Quick Start
+-------------------
 
 First get this repository onto your local system. Then install [composer](https://getcomposer.org). Composer can be installed either in the locally just in the repository, or globally on your system, although this does effect the sytax of the commands. To install dependencies run either:
 
