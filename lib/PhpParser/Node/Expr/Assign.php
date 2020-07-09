@@ -4,6 +4,9 @@ namespace PhpParser\Node\Expr;
 
 use PhpParser\Node\Expr;
 
+require_once "C:/Users/Alec Blagg/reversible-php/bam.php";
+use bam;
+
 class Assign extends Expr
 {
     /** @var Expr Variable */
@@ -19,9 +22,9 @@ class Assign extends Expr
      * @param array $attributes Additional attributes
      */
     public function __construct(Expr $var, Expr $expr, array $attributes = []) {
-        $this->attributes = $attributes;
-        $this->var = $var;
-        $this->expr = $expr;
+        $this->attributes = bam\Create($attributes);
+        $this->var = bam\Create($var);
+        $this->expr = bam\Create($expr);
     }
 
     public function getSubNodeNames() : array {

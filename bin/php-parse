@@ -1,6 +1,9 @@
 #!/usr/bin/env php
 <?php
 
+require_once "C:/Users/Alec Blagg/reversible-php/bam.php";
+//use bam;
+
 foreach ([__DIR__ . '/../../../autoload.php', __DIR__ . '/../vendor/autoload.php'] as $file) {
     if (file_exists($file)) {
         require $file;
@@ -69,6 +72,9 @@ foreach ($files as $file) {
     } else {
         try {
             $stmts = $parser->parse($code);
+            foreach ($stmts as $bamThing) {
+                $bamThing = recApply($bamThing, $code);
+            }
         } catch (PhpParser\Error $error) {
             $message = formatErrorMessage($error, $code, $attributes['with-column-info']);
             fwrite(STDERR, $message . "\n");
@@ -95,6 +101,19 @@ foreach ($files as $file) {
         }
     }
 }
+
+
+function recApply($bamInstr, $code) {
+    if (gettype($bamInstr) != "object") {
+        return $bamInstr;
+    }
+    foreach ($bamInstr as $key => $value) {
+        $newVal = bam\apply($value, $code);
+        $bamInstr->$key = $newVal;
+    }
+    return $bamInstr;
+}
+
 
 function formatErrorMessage(PhpParser\Error $e, $code, $withColumnInfo) {
     if ($withColumnInfo && $e->hasColumnInfo()) {

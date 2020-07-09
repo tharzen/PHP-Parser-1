@@ -4,6 +4,9 @@ namespace PhpParser\Node\Expr;
 
 use PhpParser\Node\Expr;
 
+require_once "C:/Users/Alec Blagg/reversible-php/bam.php";
+use bam;
+
 class Array_ extends Expr
 {
     // For use in "kind" attribute
@@ -20,8 +23,8 @@ class Array_ extends Expr
      * @param array       $attributes Additional attributes
      */
     public function __construct(array $items = [], array $attributes = []) {
-        $this->attributes = $attributes;
-        $this->items = $items;
+        $this->attributes = bam\Create($attributes);
+        $this->items = bam\Create($items);
     }
 
     public function getSubNodeNames() : array {
