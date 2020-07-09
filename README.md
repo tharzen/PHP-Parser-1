@@ -27,10 +27,59 @@ The main features provided by this library are:
  * Builders to simplify AST construction for code generation.
  * Converting an AST into JSON and back.
 
+**Tharzen Quick Start**
+**-------------------**
+
+First get this repository onto your local system. Then install [composer](https://getcomposer.org). Composer can be installed either in the locally just in the repository, or globally on your system, although this does effect the sytax of the commands. To install dependencies run either:
+
+````php composer.phar install````(if installed locally)
+or
+````composer install```` (if installed globally)
+
+You will also need to have installed the bam.php file in the tharzen/reversible-php repository on your system. In the future ideally this can be automated with a package manager. But as of now you should manually clone the reversible-php repository somewhere on your system, or simply get the bam.php file. Then identify instances where ````use bam```` are in the php parser system, and replace the ````require_once```` line above with a path to the bam.php on your system.
+
+Potential temporary stopgap script may be added to address this before more permanent solution.
+
+To run test, from top directory of php-parser repository run:
+
+````./bin/php-parse -d -P -
+j --var-dump ./lib/PhpParser/test.php
+````
+
+which should generate output:
+
+````====> File ./lib/PhpParser/test.php:
+==> Node dump:
+array(
+    0: Stmt_Expression[2:1 - 2:13](
+        expr: Expr_Assign[2:1 - 2:12](
+            var: Expr_Variable[2:1 - 2:2](
+                name: b
+            )
+            expr: Scalar_String[2:6 - 2:12](
+                value: hello
+            )
+        )
+    )
+    1: Stmt_Expression[3:1 - 3:8](
+        expr: Expr_Assign[3:1 - 3:7](
+            var: Expr_Variable[3:1 - 3:2](
+                name: a
+            )
+            expr: Scalar_LNumber[3:6 - 3:7](
+                value: 33
+            )
+        )
+    )
+)
+````
+
+To view the code being tested, look at the test.php file located at ./lib/PhpParser/test.php.
+
 Quick Start
 -----------
 
-Install the library using [composer](https://getcomposer.org):
+Install the library using [composer](https://getcomposer.org) (this installs the original repository):
 
     php composer.phar require nikic/php-parser
 
