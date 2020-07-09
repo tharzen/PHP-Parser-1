@@ -1,10 +1,11 @@
 {
-    "name": "nikic/php-parser",
+    "name": "tharzen/php-parser-1",
     "type": "library",
-    "description": "A PHP parser written in PHP",
+    "description": "A PHP parser written in PHP, utilizing bam",
     "keywords": [
         "php",
-        "parser"
+        "parser",
+        "bam"
     ],
     "license": "BSD-3-Clause",
     "authors": [

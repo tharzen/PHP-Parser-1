@@ -109,6 +109,7 @@ function recApply($bamInstr, $code) {
     }
     foreach ($bamInstr as $key => $value) {
         $newVal = bam\apply($value, $code);
+        $newVal = recApply($newVal, $code);
         $bamInstr->$key = $newVal;
     }
     return $bamInstr;

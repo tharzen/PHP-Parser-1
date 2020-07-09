@@ -4,8 +4,6 @@ namespace PhpParser;
 
 abstract class NodeAbstract implements Node, \JsonSerializable
 {
-    protected $attributes;
-
     /**
      * Creates a Node.
      *
