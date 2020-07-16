@@ -176,6 +176,41 @@ function test($foo)
 }
 ```
 
+Simpler Example:
+Code:
+````
+<?php
+$b = "hello";
+$a = 33;
+?>
+````
+
+Output AST:
+````
+array(
+    0: Stmt_Expression[2:1 - 2:13](
+        expr: Expr_Assign[2:1 - 2:12](
+            var: Expr_Variable[2:1 - 2:2](
+                name: b
+            )
+            expr: Scalar_String[2:6 - 2:12](
+                value: hello
+            )
+        )
+    )
+    1: Stmt_Expression[3:1 - 3:8](
+        expr: Expr_Assign[3:1 - 3:7](
+            var: Expr_Variable[3:1 - 3:2](
+                name: a
+            )
+            expr: Scalar_LNumber[3:6 - 3:7](
+                value: 33
+            )
+        )
+    )
+)
+````
+
 For a more comprehensive introduction, see the documentation.
 
 Documentation
