@@ -36,7 +36,7 @@ $parser = (new PhpParser\ParserFactory)->create(
     PhpParser\ParserFactory::ONLY_PHP5,
     $lexer
 );
-$dumper = new PhpParser\NodeDumper([
+/*$dumper = new PhpParser\NodeDumper([
     'dumpComments' => true,
     'dumpPositions' => $attributes['with-positions'],
 ]);
@@ -44,6 +44,7 @@ $prettyPrinter = new PhpParser\PrettyPrinter\Standard;
 
 $traverser = new PhpParser\NodeTraverser();
 $traverser->addVisitor(new PhpParser\NodeVisitor\NameResolver);
+*/
 
 foreach ($files as $file) {
     if (strpos($file, '<?php') === 0) {
@@ -87,7 +88,7 @@ foreach ($files as $file) {
         }
     }
 
-    foreach ($operations as $operation) {
+    /*foreach ($operations as $operation) {
         if ('dump' === $operation) {
             fwrite(STDERR, "==> Node dump:\n");
             echo $dumper->dump($stmts, $code), "\n";
@@ -104,7 +105,7 @@ foreach ($files as $file) {
             fwrite(STDERR, "==> Resolved names.\n");
             $stmts = $traverser->traverse($stmts);
         }
-    }
+    }*/
 }
 
 
@@ -198,61 +199,61 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
         case "Scalar_String":
         case "Scalar_EncapsedStringPart":
             $new = bam\Create([
-                    "objName" => bam\Create($type),
-                    "value" => bam\ReuseArray($obj->attributes["startFilePos"] + 1, bam\Create(),
-                        $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1, bam\Reuse()),
-                    "attributes" => bam\Create($obj->attributes)
+                "objName" => bam\Create($type),
+                "value" => bam\ReuseArray($obj->attributes["startFilePos"] + 1, bam\Create(),
+                    $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1, bam\Reuse()),
+                "attributes" => bam\Create($obj->attributes)
             ]);
             break;
         case "Stmt_Echo":
             $new = bam\Create([
-                    "objName" => bam\Create($type),
-                    "exprs" => bam\Create(handleArr($obj->exprs)),
-                    "attributes" => bam\Create($obj->attributes)
+                "objName" => bam\Create($type),
+                "exprs" => bam\Create(handleArr($obj->exprs)),
+                "attributes" => bam\Create($obj->attributes)
             ]);
             break;
         case "Expr_Array": // might need to do bamswitch stuff on items
             $new = bam\Create([
-                    "objName" => bam\Create($type),
-                    "items" => bam\Create($obj->items),
-                    "attributes" => bam\Create($obj->attributes)
+                "objName" => bam\Create($type),
+                "items" => bam\Create($obj->items),
+                "attributes" => bam\Create($obj->attributes)
             ]);
             break;
         case "Expr_ArrayDimFetch":
             $new = bam\Create([
-                    "objName" => bam\Create($type),
-                    "var" => bamSwitch($obj->var),
-                    "dim" => bamSwitch($obj->dim),
-                    "attributes" => bam\Create($obj->attributes)
+                "objName" => bam\Create($type),
+                "var" => bamSwitch($obj->var),
+                "dim" => bamSwitch($obj->dim),
+                "attributes" => bam\Create($obj->attributes)
             ]);
             break;
         case "Expr_ArrayItem":
             $new = bam\Create([
-                    "objName" => bam\Create($type),
-                    "key" => bamSwitch($obj->key),
-                    "value" => bamSwitch($obj->value),
-                    "byRef" => bam\Create($obj->byRef),
-                    "unpack" => bam\Create($obj->unpack),
-                    "attributes" => bam\Create($obj->attributes)
+                "objName" => bam\Create($type),
+                "key" => bamSwitch($obj->key),
+                "value" => bamSwitch($obj->value),
+                "byRef" => bam\Create($obj->byRef),
+                "unpack" => bam\Create($obj->unpack),
+                "attributes" => bam\Create($obj->attributes)
             ]);
             break;
         case "Expr_ArrowFunction": //has this->returnType and returnType???
             $new = bam\Create([
-                    "objName" => bam\Create($type),
-                    "static" => bam\Create($obj->static),
-                    "byRef" => bam\Create($obj->byRef),
-                    "params" => bam\Create($obj->params),
-                    "returnType" => bamSwitch($obj->returnType),
-                    "expr" => bamSwitch($obj->expr),
-                    "attributes" => bam\Create($obj->attributes)
+                "objName" => bam\Create($type),
+                "static" => bam\Create($obj->static),
+                "byRef" => bam\Create($obj->byRef),
+                "params" => bam\Create($obj->params),
+                "returnType" => bamSwitch($obj->returnType),
+                "expr" => bamSwitch($obj->expr),
+                "attributes" => bam\Create($obj->attributes)
             ]);
             break;
         case "Expr_AssignRef":
             $new = bam\Create([
-                    "objName" => bam\Create($type),
-                    "var" => bamSwitch($obj->var),
-                    "expr" => bamSwitch($obj->expr),
-                    "attributes" => bam\Create($obj->attributes)
+                "objName" => bam\Create($type),
+                "var" => bamSwitch($obj->var),
+                "expr" => bamSwitch($obj->expr),
+                "attributes" => bam\Create($obj->attributes)
             ]);
             break;
         case "Expr_BitwiseNot":
@@ -275,104 +276,104 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
         case "Expr_ClassConstFetch":
         case "Expr_StaticPropertyFetch":
             $new = bam\Create([
-                    "objName" => bam\Create($type),
-                    "class" => bamSwitch($obj->class),
-                    "name" => is_string($obj->name) ?
-                        bam\ReuseArray($obj->attributes["startFilePos"] + 1, bam\Create(),
-                            $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1, bam\Reuse()) :
-                        bamSwitch($obj->name),
-                    "attributes" => bam\Create($obj->attributes)
+                "objName" => bam\Create($type),
+                "class" => bamSwitch($obj->class),
+                "name" => is_string($obj->name) ?
+                    bam\ReuseArray($obj->attributes["startFilePos"] + 1, bam\Create(),
+                        $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1, bam\Reuse()) :
+                    bamSwitch($obj->name),
+                "attributes" => bam\Create($obj->attributes)
             ]);
             break;
         case "Expr_Closure":
             $new = bam\Create([
-                    "objName" => bam\Create($type),
-                    "static" => bam\Create($obj->expr),
-                    "byRef" => bam\Create($obj->byRef),
-                    "params" => bam\Create($obj->params),
-                    "uses" => bam\Create($obj->uses),
-                    "returnType" => bamSwitch($obj->returnType),
-                    "stmts" => bam\Create(handleArr($obj->stmts)),
-                    "attributes" => bam\Create($obj->attributes)
+                "objName" => bam\Create($type),
+                "static" => bam\Create($obj->expr),
+                "byRef" => bam\Create($obj->byRef),
+                "params" => bam\Create($obj->params),
+                "uses" => bam\Create($obj->uses),
+                "returnType" => bamSwitch($obj->returnType),
+                "stmts" => bam\Create(handleArr($obj->stmts)),
+                "attributes" => bam\Create($obj->attributes)
             ]);
             break;
         case "Expr_ClosureUse":
             $new = bam\Create([
-                    "objName" => bam\Create($type),
-                    "var" => bamSwitch($obj->var),
-                    "byRef" => bam\Create($obj->byRef),
-                    "attributes" => bam\Create($obj->attributes)
+                "objName" => bam\Create($type),
+                "var" => bamSwitch($obj->var),
+                "byRef" => bam\Create($obj->byRef),
+                "attributes" => bam\Create($obj->attributes)
             ]);
             break;
         case "Expr_ConstFetch":
             $new = bam\Create([
-                    "objName" => bam\Create($type),
-                    "name" => bamSwitch($obj->name),
-                    "attributes" => bam\Create($obj->attributes)
+                "objName" => bam\Create($type),
+                "name" => bamSwitch($obj->name),
+                "attributes" => bam\Create($obj->attributes)
             ]);
             break;
         case "Expr_Error":
             $new = bam\Create([
-                    "objName" => bam\Create($type),
-                    "attributes" => bam\Create($obj->attributes)
+                "objName" => bam\Create($type),
+                "attributes" => bam\Create($obj->attributes)
             ]);
             break;
         case "Expr_FuncCall":
             $new = bam\Create([
-                    "objName" => bam\Create($type),
-                    "name" => bamSwitch($obj->name),
-                    "args" => bam\Create(handleArr($obj->args)),
-                    "attributes" => bam\Create($obj->attributes)
+                "objName" => bam\Create($type),
+                "name" => bamSwitch($obj->name),
+                "args" => bam\Create(handleArr($obj->args)),
+                "attributes" => bam\Create($obj->attributes)
             ]);
             break;
         case "Expr_Include":
             $new = bam\Create([
-                    "objName" => bam\Create($type),
-                    "expr" => bamSwitch($obj->expr),
-                    "type" => bam\Create($obj->type),
-                    "attributes" => bam\Create($obj->attributes)
+                "objName" => bam\Create($type),
+                "expr" => bamSwitch($obj->expr),
+                "type" => bam\Create($obj->type),
+                "attributes" => bam\Create($obj->attributes)
             ]);
             break;
         case "Expr_Instanceof":
             $new = bam\Create([
-                    "objName" => bam\Create($type),
-                    "expr" => bamSwitch($obj->expr),
-                    "class" => bamSwitch($obj->class),
-                    "attributes" => bam\Create($obj->attributes)
+                "objName" => bam\Create($type),
+                "expr" => bamSwitch($obj->expr),
+                "class" => bamSwitch($obj->class),
+                "attributes" => bam\Create($obj->attributes)
             ]);
             break;
         case "Expr_Isset":
             $new = bam\Create([
-                    "objName" => bam\Create($type),
-                    "vars" => bam\Create(handleArr($obj->vars)),
-                    "attributes" => bam\Create($obj->attributes)
+                "objName" => bam\Create($type),
+                "vars" => bam\Create(handleArr($obj->vars)),
+                "attributes" => bam\Create($obj->attributes)
             ]);
             break;
         case "Expr_List": //figure out what items are
             $new = bam\Create([
-                    "objName" => bam\Create($type),
-                    "items" => bam\Create(handleArr($obj->items)),
-                    "attributes" => bam\Create($obj->attributes)
+                "objName" => bam\Create($type),
+                "items" => bam\Create(handleArr($obj->items)),
+                "attributes" => bam\Create($obj->attributes)
             ]);
             break;
         case "Expr_MethodCall":
             $new = bam\Create([
-                    "objName" => bam\Create($type),
-                    "var" => bamSwitch($obj->var),
-                    "name" => is_string($obj->name) ?
-                        bam\ReuseArray($obj->attributes["startFilePos"] + 1, bam\Create(),
-                            $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1, bam\Reuse()) :
-                        bamSwitch($obj->name),
-                    "args" => bam\Create(handleArr($obj->args)),
-                    "attributes" => bam\Create($obj->attributes)
+                "objName" => bam\Create($type),
+                "var" => bamSwitch($obj->var),
+                "name" => is_string($obj->name) ?
+                    bam\ReuseArray($obj->attributes["startFilePos"] + 1, bam\Create(),
+                        $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1, bam\Reuse()) :
+                    bamSwitch($obj->name),
+                "args" => bam\Create(handleArr($obj->args)),
+                "attributes" => bam\Create($obj->attributes)
             ]);
             break;
         case "Expr_New":
             $new = bam\Create([
-                    "objName" => bam\Create($type),
-                    "class" => bamSwitch($obj->class),
-                    "args" => bam\Create(handleArr($obj->args)),
-                    "attributes" => bam\Create($obj->attributes)
+                "objName" => bam\Create($type),
+                "class" => bamSwitch($obj->class),
+                "args" => bam\Create(handleArr($obj->args)),
+                "attributes" => bam\Create($obj->attributes)
             ]);
             break;
         case "Expr_PostDec":
@@ -380,118 +381,118 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
         case "Expr_PreDec":
         case "Expr_PreInc":
             $new = bam\Create([
-                    "objName" => bam\Create($type),
-                    "var" => bamSwitch($obj->var),
-                    "attributes" => bam\Create($obj->attributes)
+                "objName" => bam\Create($type),
+                "var" => bamSwitch($obj->var),
+                "attributes" => bam\Create($obj->attributes)
             ]);
             break;
         case "Expr_PropertyFetch":
             $new = bam\Create([
-                    "objName" => bam\Create($type),
-                    "var" => bamSwitch($obj->var),
-                    "name" => is_string($obj->name) ?
-                        bam\ReuseArray($obj->attributes["startFilePos"] + 1, bam\Create(),
-                            $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1, bam\Reuse()) :
-                        bamSwitch($obj->name),
-                    "attributes" => bam\Create($obj->attributes)
+                "objName" => bam\Create($type),
+                "var" => bamSwitch($obj->var),
+                "name" => is_string($obj->name) ?
+                    bam\ReuseArray($obj->attributes["startFilePos"] + 1, bam\Create(),
+                        $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1, bam\Reuse()) :
+                    bamSwitch($obj->name),
+                "attributes" => bam\Create($obj->attributes)
             ]);
             break;
         case "Expr_ShellExec":
         case "Scalar_Encapsed":
             $new = bam\Create([
-                    "objName" => bam\Create($type),
-                    "parts" => bam\Create(handleArr($obj->parts)),
-                    "attributes" => bam\Create($obj->attributes)
+                "objName" => bam\Create($type),
+                "parts" => bam\Create(handleArr($obj->parts)),
+                "attributes" => bam\Create($obj->attributes)
             ]);
             break;
         case "Expr_StaticCall":
             $new = bam\Create([
-                    "objName" => bam\Create($type),
-                    "class" => bamSwitch($obj->class),
-                    "name" => is_string($obj->name) ?
-                        bam\ReuseArray($obj->attributes["startFilePos"] + 1, bam\Create(),
-                            $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1, bam\Reuse()) :
-                        bamSwitch($obj->name),
-                    "args" => bam\Create(handleArr($obj->args)),
-                    "attributes" => bam\Create($obj->attributes)
+                "objName" => bam\Create($type),
+                "class" => bamSwitch($obj->class),
+                "name" => is_string($obj->name) ?
+                    bam\ReuseArray($obj->attributes["startFilePos"] + 1, bam\Create(),
+                        $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1, bam\Reuse()) :
+                    bamSwitch($obj->name),
+                "args" => bam\Create(handleArr($obj->args)),
+                "attributes" => bam\Create($obj->attributes)
             ]);
             break;
         case "Expr_Ternary":
             $new = bam\Create([
-                    "objName" => bam\Create($type),
-                    "cond" => bamSwitch($obj->cond),
-                    "if" => bamSwitch($obj->if),
-                    "else" => bamSwitch($obj->else),
-                    "attributes" => bam\Create($obj->attributes)
+                "objName" => bam\Create($type),
+                "cond" => bamSwitch($obj->cond),
+                "if" => bamSwitch($obj->if),
+                "else" => bamSwitch($obj->else),
+                "attributes" => bam\Create($obj->attributes)
             ]);
             break;
         case "Expr_Yield":
             $new = bam\Create([
-                    "objName" => bam\Create($type),
-                    "key" => bamSwitch($obj->key),
-                    "value" => bamSwitch($obj->value),
-                    "attributes" => bam\Create($obj->attributes)
+                "objName" => bam\Create($type),
+                "key" => bamSwitch($obj->key),
+                "value" => bamSwitch($obj->value),
+                "attributes" => bam\Create($obj->attributes)
             ]);
             break;
         case "Stmt_Break":
             $new = bam\Create([
-                    "objName" => bam\Create($type),
-                    "num" => bamSwitch($obj->num),
-                    "attributes" => bam\Create($obj->attributes)
+                "objName" => bam\Create($type),
+                "num" => bamSwitch($obj->num),
+                "attributes" => bam\Create($obj->attributes)
             ]);
             break;
         case "Stmt_Case":
             $new = bam\Create([
-                    "objName" => bam\Create($type),
-                    "cond" => bamSwitch($obj->cond),
-                    "stmts" => bam\Create(handleArr($obj->stmts)),
-                    "attributes" => bam\Create($obj->attributes)
+                "objName" => bam\Create($type),
+                "cond" => bamSwitch($obj->cond),
+                "stmts" => bam\Create(handleArr($obj->stmts)),
+                "attributes" => bam\Create($obj->attributes)
             ]);
             break;
         case "Stmt_Catch":
             $new = bam\Create([
-                    "objName" => bam\Create($type),
-                    "types" => bam\Create(handleArr($obj->types)),
-                    "var" => bamSwitch($obj->var),
-                    "stmts" => bam\Create(handleArr($obj->stmts)),
-                    "attributes" => bam\Create($obj->attributes)
+                "objName" => bam\Create($type),
+                "types" => bam\Create(handleArr($obj->types)),
+                "var" => bamSwitch($obj->var),
+                "stmts" => bam\Create(handleArr($obj->stmts)),
+                "attributes" => bam\Create($obj->attributes)
             ]);
             break;
         case "Stmt_Class":
             $new = bam\Create([
-                    "objName" => bam\Create($type),
-                    "flag" => bam\Create($obj->flag),
-                    "name" => is_string($obj->name) ?
-                        bam\ReuseArray($obj->attributes["startFilePos"] + 1, bam\Create(),
-                            $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1, bam\Reuse()) :
-                        bamSwitch($obj->name),
-                    "implements" => bam\Create(handleArr($obj->implements)),
-                    "extends" => bamSwitch($obj->extends),
-                    "stmts" => bam\Create(handleArr($obj->stmts)),
-                    "attributes" => bam\Create($obj->attributes)
+                "objName" => bam\Create($type),
+                "flag" => bam\Create($obj->flag),
+                "name" => is_string($obj->name) ?
+                    bam\ReuseArray($obj->attributes["startFilePos"] + 1, bam\Create(),
+                        $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1, bam\Reuse()) :
+                    bamSwitch($obj->name),
+                "implements" => bam\Create(handleArr($obj->implements)),
+                "extends" => bamSwitch($obj->extends),
+                "stmts" => bam\Create(handleArr($obj->stmts)),
+                "attributes" => bam\Create($obj->attributes)
             ]);
             break;
         case "Stmt_ClassConst":
             $new = bam\Create([
-                    "objName" => bam\Create($type),
-                    "flags" => bam\Create($obj->flags),
-                    "consts" => bam\Create(handleArr($obj->consts)),
-                    "attributes" => bam\Create($obj->attributes)
+                "objName" => bam\Create($type),
+                "flags" => bam\Create($obj->flags),
+                "consts" => bam\Create(handleArr($obj->consts)),
+                "attributes" => bam\Create($obj->attributes)
             ]);
             break;
         case "Stmt_ClassMethod": //params?? handleArr??
             $new = bam\Create([
-                    "objName" => bam\Create($type),
-                    "flags" => bam\Create($obj->flags),
-                    "byRef" => bam\Create($obj->byRef),
-                    "name" => is_string($obj->name) ?
-                        bam\ReuseArray($obj->attributes["startFilePos"] + 1, bam\Create(),
-                            $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1, bam\Reuse()) :
-                        bamSwitch($obj->name),
-                    "params" => bam\Create($obj->params),
-                    "returnType" => bamSwitch($obj->returnType),
-                    "stmts" => bam\Create(handleArr($obj->stmts)),
-                    "attributes" => bam\Create($obj->attributes)
+                "objName" => bam\Create($type),
+                "flags" => bam\Create($obj->flags),
+                "byRef" => bam\Create($obj->byRef),
+                "name" => is_string($obj->name) ?
+                    bam\ReuseArray($obj->attributes["startFilePos"] + 1, bam\Create(),
+                        $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1, bam\Reuse()) :
+                    bamSwitch($obj->name),
+                "params" => bam\Create($obj->params),
+                "returnType" => bamSwitch($obj->returnType),
+                "stmts" => bam\Create(handleArr($obj->stmts)),
+                "attributes" => bam\Create($obj->attributes)
             ]);
             break;
 
@@ -512,15 +513,15 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
                 ]);
             } else if (substr($type, 0, 13) == "Expr_Cast") {
                 $new = bam\Create([
-                        "objName" => bam\Create($type),
-                        "expr" => bamSwitch($obj->expr),
-                        "attributes" => bam\Create($obj->attributes)
+                    "objName" => bam\Create($type),
+                    "expr" => bamSwitch($obj->expr),
+                    "attributes" => bam\Create($obj->attributes)
                 ]);
             } else if (substr($type, 0, 4) == "Name") { //unsure on parts
                 $new = bam\Create([
-                        "objName" => bam\Create($type),
-                        "parts" => bam\Create($obj->parts),
-                        "attributes" => bam\Create($obj->attributes)
+                    "objName" => bam\Create($type),
+                    "parts" => bam\Create($obj->parts),
+                    "attributes" => bam\Create($obj->attributes)
                 ]);
             } else if (substr($type, 0, 17) == "Scalar_MagicConst") {
                 $new = bam\Create([
