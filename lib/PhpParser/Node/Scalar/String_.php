@@ -5,9 +5,6 @@ namespace PhpParser\Node\Scalar;
 use PhpParser\Error;
 use PhpParser\Node\Scalar;
 
-require_once "C:/Users/Alec Blagg/reversible-php/bam.php";
-use bam;
-
 class String_ extends Scalar
 {
     /* For use in "kind" attribute */
@@ -37,9 +34,8 @@ class String_ extends Scalar
      * @param array  $attributes Additional attributes
      */
     public function __construct(string $value, array $attributes = []) {
-        $this->attributes = bam\Create($attributes);
-        $this->value = bam\ReuseArray($attributes["startFilePos"] + 1, bam\Create(""),
-            ($attributes["endFilePos"] - $attributes["startFilePos"] - 1), bam\Reuse());
+        $this->attributes = $attributes;
+        $this->value = $value;
     }
 
     public function getSubNodeNames() : array {

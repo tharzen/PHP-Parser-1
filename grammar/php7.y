@@ -399,6 +399,25 @@ case_separator:
     | ';'
 ;
 
+match:
+      T_MATCH '(' expr ')' '{' match_arm_list '}'           { $$ = Expr\Match_[$3, $6]; }
+;
+
+match_arm_list:
+      /* empty */                                           { $$ = []; }
+    | non_empty_match_arm_list optional_comma               { $$ = $1; }
+;
+
+non_empty_match_arm_list:
+      match_arm                                             { init($1); }
+    | non_empty_match_arm_list ',' match_arm                { push($1, $3); }
+;
+
+match_arm:
+      expr_list_allow_comma T_DOUBLE_ARROW expr             { $$ = Node\MatchArm[$1, $3]; }
+    | T_DEFAULT optional_comma T_DOUBLE_ARROW expr          { $$ = Node\MatchArm[null, $4]; }
+;
+
 while_statement:
       statement                                             { $$ = toArray($1); }
     | ':' inner_statement_list T_ENDWHILE ';'               { $$ = $2; }
@@ -666,6 +685,7 @@ expr:
     | variable '=' expr                                     { $$ = Expr\Assign[$1, $3]; }
     | variable '=' '&' variable                             { $$ = Expr\AssignRef[$1, $4]; }
     | new_expr                                              { $$ = $1; }
+    | match                                                 { $$ = $1; }
     | T_CLONE expr                                          { $$ = Expr\Clone_[$2]; }
     | variable T_PLUS_EQUAL expr                            { $$ = Expr\AssignOp\Plus      [$1, $3]; }
     | variable T_MINUS_EQUAL expr                           { $$ = Expr\AssignOp\Minus     [$1, $3]; }
@@ -967,14 +987,14 @@ new_variable:
 
 member_name:
       identifier_ex                                         { $$ = $1; }
-    | '{' expr '}'	                                        { $$ = $2; }
-    | simple_variable	                                    { $$ = Expr\Variable[$1]; }
+    | '{' expr '}'                                          { $$ = $2; }
+    | simple_variable                                       { $$ = Expr\Variable[$1]; }
 ;
 
 property_name:
       identifier                                            { $$ = $1; }
-    | '{' expr '}'	                                        { $$ = $2; }
-    | simple_variable	                                    { $$ = Expr\Variable[$1]; }
+    | '{' expr '}'                                          { $$ = $2; }
+    | simple_variable                                       { $$ = Expr\Variable[$1]; }
     | error                                                 { $$ = Expr\Error[]; $this->errorState = 2; }
 ;
 

@@ -1,4 +1,5 @@
 <?php
-$b = "hello";
-$a = 33;
+$b = 33 + 2;
+$c = "hello";
+echo "hello", "there";
 ?>

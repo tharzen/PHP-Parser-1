@@ -4,9 +4,6 @@ namespace PhpParser\Node\Expr;
 
 use PhpParser\Node\Expr;
 
-require_once "C:/Users/Alec Blagg/reversible-php/bam.php";
-use bam;
-
 class ArrayDimFetch extends Expr
 {
     /** @var Expr Variable */
@@ -22,9 +19,9 @@ class ArrayDimFetch extends Expr
      * @param array     $attributes Additional attributes
      */
     public function __construct(Expr $var, Expr $dim = null, array $attributes = []) {
-        $this->attributes = bam\Create($attributes);
-        $this->var = bam\Create($var);
-        $this->dim = bam\Create($dim);
+        $this->attributes = $attributes;
+        $this->var = $var;
+        $this->dim = $dim;
     }
 
     public function getSubNodeNames() : array {

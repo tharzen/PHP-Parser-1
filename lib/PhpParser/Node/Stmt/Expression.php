@@ -4,9 +4,6 @@ namespace PhpParser\Node\Stmt;
 
 use PhpParser\Node;
 
-require_once "C:/Users/Alec Blagg/reversible-php/bam.php";
-use bam;
-
 /**
  * Represents statements of type "expr;"
  */
@@ -22,8 +19,8 @@ class Expression extends Node\Stmt
      * @param array     $attributes Additional attributes
      */
     public function __construct(Node\Expr $expr, array $attributes = []) {
-        $this->attributes = bam\Create($attributes);
-        $this->expr = bam\Create($expr);
+        $this->attributes = $attributes;
+        $this->expr = $expr;
     }
 
     public function getSubNodeNames() : array {
