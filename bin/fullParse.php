@@ -11,6 +11,12 @@ foreach ([__DIR__ . '/../../../autoload.php', __DIR__ . '/../vendor/autoload.php
     }
 }
 
+
+// signature of parse function:
+// file name, file contents
+// return edit action
+
+
 ini_set('xdebug.max_nesting_level', 3000);
 
 // Disable XDebug var_dump() output truncation
@@ -147,9 +153,15 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
     if ($obj == null) {
         return null;
     }
+    if (is_string($obj)) {
+        return $obj;
+        //what to do here
+    }
     $type = $obj->getType();
     switch ($type) {
         case "Stmt_Expression":
+        case "Stmt_Return":
+        case "Stmt_Throw":
             $new = bam\Create([
                 "objName" => bam\Create($type),
                 "expr" => bamSwitch($obj->expr),
@@ -174,6 +186,8 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
             $obj->attributes; //check for comments*/
             break;
         case "Expr_Variable":
+        case "Stmt_Goto":
+        case "Stmt_Label":
             $new = bam\Create([
                 "objName" => bam\Create($type),
                 "name" => is_string($obj->name) ?
@@ -198,12 +212,15 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
             break;
         case "Scalar_String":
         case "Scalar_EncapsedStringPart":
+        case "Stmt_InlineHTML":
             $new = bam\Create([
                 "objName" => bam\Create($type),
-                "value" => bam\ReuseArray($obj->attributes["startFilePos"] + 1, bam\Create(),
-                    $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1, bam\Reuse()),
+                "value" => /*bam\Custom(*/bam\ReuseArray($obj->attributes["startFilePos"] + 1, bam\Create(),
+                        $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1, bam\Reuse())/*,
+                    function($x) {str_replace("\\n", "\n", $x);},
+                    function($x) {str_replace("\n", "\\n", $x);}),
                 "attributes" => bam\Create($obj->attributes)
-            ]);
+            */]);
             break;
         case "Stmt_Echo":
             $new = bam\Create([
@@ -343,6 +360,9 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
             ]);
             break;
         case "Expr_Isset":
+        case "Stmt_Global":
+        case "Stmt_Static":
+        case "Stmt_Unset":
             $new = bam\Create([
                 "objName" => bam\Create($type),
                 "vars" => bam\Create(handleArr($obj->vars)),
@@ -435,6 +455,7 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
             ]);
             break;
         case "Stmt_Break":
+        case "Stmt_Continue":
             $new = bam\Create([
                 "objName" => bam\Create($type),
                 "num" => bamSwitch($obj->num),
@@ -442,6 +463,9 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
             ]);
             break;
         case "Stmt_Case":
+        case "Stmt_Do":
+        case "Stmt_ElseIf":
+        case "Stmt_While":
             $new = bam\Create([
                 "objName" => bam\Create($type),
                 "cond" => bamSwitch($obj->cond),
@@ -495,7 +519,296 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
                 "attributes" => bam\Create($obj->attributes)
             ]);
             break;
-
+        case "Stmt_Const":
+            $new = bam\Create([
+                    "objName" => bam\Create($type),
+                    "consts" => bam\Create(handleArr($obj->consts)),
+                    "attributes" => bam\Create($obj->attributes)
+            ]);
+            break;
+        case "Stmt_Declare":
+            $new = bam\Create([
+                    "objName" => bam\Create($type),
+                    "declares" => bam\Create(handleArr($obj->declares)),
+                    "stmts" => bam\Create(handleArr($obj->stmts)),
+                    "attributes" => bam\Create($obj->attributes)
+            ]);
+            break;
+        case "Stmt_DeclareDeclare":
+            $new = bam\Create([
+                    "objName" => bam\Create($type),
+                    "key" => is_string($obj->key) ?
+                        bam\ReuseArray($obj->attributes["startFilePos"] + 1, bam\Create(),
+                            $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1, bam\Reuse()) :
+                        bamSwitch($obj->key),
+                    "value" => bamSwitch($obj->value),
+                    "attributes" => bam\Create($obj->attributes)
+            ]);
+            break;
+        case "Stmt_Else":
+        case "Stmt_Finally":
+            $new = bam\Create([
+                    "objName" => bam\Create($type),
+                    "stmts" => bam\Create(handleArr($obj->stmts)),
+                    "attributes" => bam\Create($obj->attributes)
+            ]);
+            break;
+        case "Stmt_For":
+            $new = bam\Create([
+                    "objName" => bam\Create($type),
+                    "init" => bam\Create(handleArr($obj->init)),
+                    "cond" => bam\Create(handleArr($obj->cond)),
+                    "loop" => bam\Create(handleArr($obj->loop)),
+                    "stmts" => bam\Create(handleArr($obj->stmts)),
+                    "attributes" => bam\Create($obj->attributes)
+            ]);
+            break;
+        case "Stmt_Foreach":
+            $new = bam\Create([
+                    "objName" => bam\Create($type),
+                    "expr" => bamSwitch($obj->expr),
+                    "keyVar" => bamSwitch($obj->keyVar),
+                    "byRef" => bam\Create($obj->byRef),
+                    "valueVar" => bamSwitch($obj->valueVar),
+                    "stmts" => bam\Create(handleArr($obj->stmts))
+            ]);
+            break;
+        case "Stmt_Function":
+            $new = bam\Create([
+                    "objName" => bam\Create($type),
+                    "byRef" => bam\Create($obj->byRef),
+                    "name" => is_string($obj->name) ?
+                        bam\ReuseArray($obj->attributes["startFilePos"] + 1, bam\Create(),
+                            $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1, bam\Reuse()) :
+                        bamSwitch($obj->name),
+                    "params" => bam\Create($obj->params),
+                    "returnType" => bamSwitch($obj->returnType),
+                    "stmts" => bam\Create(handleArr($obj->stmts)),
+                    "attributes" => bam\Create($obj->attributes)
+            ]);
+            break;
+        case "Stmt_GroupUse":
+            $new = bam\Create([
+                    "objName" => bam\Create($type),
+                    "type" => bam\Create($obj->type),
+                    "prefix" => bamSwitch($obj->prefix),
+                    "uses" => bam\Create(handleArr($obj->uses)),
+                    "attributes" => bam\Create($obj->attributes)
+            ]);
+            break;
+        case "Stmt_HaltCompiler":
+            $new = bam\Create([
+                    "objName" => bam\Create($type),
+                    "remaining" => bam\ReuseArray($obj->attributes["startFilePos"] + 1, bam\Create(),
+                        $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1, bam\Reuse()),
+                    "attributes" => bam\Create($obj->attributes)
+            ]);
+            break;
+        case "Stmt_If":
+            $new = bam\Create([
+                    "objName" => bam\Create($type),
+                    "cond" => bamSwitch($obj->cond),
+                    "stmts" => bam\Create(handleArr($obj->stmts)),
+                    "elseifs" => bam\Create(handleArr($obj->elseifs)),
+                    "else" => bamSwitch($obj->else),
+                    "attributes" => bam\Create($obj->attributes)
+            ]);
+            break;
+        case "Stmt_Interface":
+            $new = bam\Create([
+                    "objName" => bam\Create($type),
+                    "name" => is_string($obj->name) ?
+                        bam\ReuseArray($obj->attributes["startFilePos"] + 1, bam\Create(),
+                            $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1, bam\Reuse()) :
+                        bamSwitch($obj->name),
+                    "extends" => bam\Create(handleArr($obj->extends)),
+                    "stmts" => bam\Create(handleArr($obj->stmts)),
+                    "attributes" => bam\Create($obj->attributes)
+            ]);
+            break;
+        case "Stmt_Namespace":
+            $new = bam\Create([
+                    "objName" => bam\Create($type),
+                    "name" => bamSwitch($obj->name),
+                    "stmts" => bam\Create(handleArr($obj->stmts)),
+                    "attributes" => bam\Create($obj->attributes)
+            ]);
+            break;
+        case "Stmt_Property":
+            $new = bam\Create([
+                    "objName" => bam\Create($type),
+                    "flags" => bam\Create($obj->flags),
+                    "props" => bam\Create(handleArr($obj->props)),
+                    "type" => is_string($obj->type) ?
+                        bam\ReuseArray($obj->attributes["startFilePos"] + 1, bam\Create(),
+                            $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1, bam\Reuse()) :
+                        bamSwitch($obj->type),
+                    "attributes" => bam\Create($obj->attributes)
+            ]);
+            break;
+        case "Stmt_PropertyProperty":
+            $new = bam\Create([
+                    "objName" => bam\Create($type),
+                    "name" => is_string($obj->name) ?
+                        bam\ReuseArray($obj->attributes["startFilePos"] + 1, bam\Create(),
+                            $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1, bam\Reuse()) :
+                        bamSwitch($obj->name),
+                    "default" => bamSwitch($obj->default),
+                    "attributes" => bam\Create($obj->attributes)
+            ]);
+            break;
+        case "Stmt_StaticVar":
+            $new = bam\Create([
+                    "objName" => bam\Create($type),
+                    "var" => bamSwitch($obj->var),
+                    "default" => bamSwitch($obj->default),
+                    "attributes" => bam\Create($obj->attributes)
+            ]);
+            break;
+        case "Stmt_Switch":
+            $new = bam\Create([
+                    "objName" => bam\Create($type),
+                    "cond" => bamSwitch($obj->cond),
+                    "cases" => bam\Create(handleArr($obj->cases)),
+                    "attributes" => bam\Create($obj->attributes)
+            ]);
+            break;
+        case "Stmt_Trait":
+            $new = bam\Create([
+                    "objName" => bam\Create($type),
+                    "name" => is_string($obj->name) ?
+                        bam\ReuseArray($obj->attributes["startFilePos"] + 1, bam\Create(),
+                            $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1, bam\Reuse()) :
+                        bamSwitch($obj->name),
+                    "stmts" => bam\Create(handleArr($obj->stmts)),
+                    "attributes" => bam\Create($obj->attributes)
+            ]);
+            break;
+        case "Stmt_TraitUse":
+            $new = bam\Create([
+                    "objName" => bam\Create($type),
+                    "traits" => bam\Create(handleArr($obj->traits)),
+                    "adaptations" => bam\Create(handleArr($obj->adaptations)),
+                    "attributes" => bam\Create($obj->attributes)
+            ]);
+            break;
+        case "Stmt_TryCatch":
+            $new = bam\Create([
+                    "objName" => bam\Create($type),
+                    "stmts" => bam\Create(handleArr($obj->stmts)),
+                    "catches" => bam\Create(handleArr($obj->catches)),
+                    "finally" => bamSwitch($obj->finally),
+                    "attributes" => bam\Create($obj->attributes)
+            ]);
+            break;
+        case "Stmt_Use":
+            $new = bam\Create([
+                    "objName" => bam\Create($type),
+                    "type" => bam\Create($obj->type),
+                    "uses" => bam\Create(handleArr($obj->uses)),
+                    "attributes" => bam\Create($obj->attributes)
+            ]);
+            break;
+        case "Stmt_UseUse":
+            $new = bam\Create([
+                    "objName" => bam\Create($type),
+                    "type" => bam\Create($obj->type),
+                    "name" => bamSwitch($obj->name),
+                    "alias" => is_string($obj->alias) ?
+                        bam\ReuseArray($obj->attributes["startFilePos"] + 1, bam\Create(),
+                            $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1, bam\Reuse()) :
+                        bamSwitch($obj->alias),
+                    "attributes" => bam\Create($obj->attributes)
+            ]);
+            break;
+        case "Stmt_TraitUseAdaptation_Alias":
+            $new = bam\Create([
+                    "objName" => bam\Create($type),
+                    "trait" => bamSwitch($obj->trait),
+                    "method" => is_string($obj->method) ?
+                        bam\ReuseArray($obj->attributes["startFilePos"] + 1, bam\Create(),
+                            $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1, bam\Reuse()) :
+                        bamSwitch($obj->method),
+                    "newModifier" => bam\Create($obj->newModifier),
+                    "newName" => is_string($obj->newName) ?
+                        bam\ReuseArray($obj->attributes["startFilePos"] + 1, bam\Create(),
+                            $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1, bam\Reuse()) :
+                        bamSwitch($obj->newName),
+                    "attributes" => bam\Create($obj->attributes)
+            ]);
+            break;
+        case "Stmt_TraitUseAdaptation_Precedence":
+            $new = bam\Create([
+                    "objName" => bam\Create($type),
+                    "trait" => bamSwitch($obj->trait),
+                    "method" => is_string($obj->method) ?
+                        bam\ReuseArray($obj->attributes["startFilePos"] + 1, bam\Create(),
+                            $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1, bam\Reuse()) :
+                        bamSwitch($obj->method),
+                    "insteadOf" => bam\Create(handleArr($obj->insteadOf)),
+                    "attributes" => bam\Create($obj->attributes)
+            ]);
+            break;
+        case "Arg":
+            $new = bam\Create([
+                    "objName" => bam\Create($type),
+                    "value" => bamSwitch($obj->value),
+                    "byRef" => bam\Create($obj->byRef),
+                    "unpack" => bam\Create($obj->unpack),
+                    "attributes" => bam\Create($obj->attributes)
+            ]);
+            break;
+        case "Const":
+            $new = bam\Create([
+                    "objName" => bam\Create($type),
+                    "name" => is_string($obj->name) ?
+                        bam\ReuseArray($obj->attributes["startFilePos"] + 1, bam\Create(),
+                            $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1, bam\Reuse()) :
+                        bamSwitch($obj->name),
+                    "value" => bamSwitch($obj->value),
+                    "attributes" => bam\Create($obj->attributes)
+            ]);
+            break;
+        case "Identifier":
+            $new = bam\Create([
+                    "objName" => bam\Create($type),
+                    "name" => bam\ReuseArray($obj->attributes["startFilePos"] + 1, bam\Create(),
+                            $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1, bam\Reuse()),
+                    "attributes" => bam\Create($obj->attributes)
+            ]);
+            break;
+        case "NullableType":
+            $new = bam\Create([
+                    "objName" => bam\Create($type),
+                    "type" => is_string($obj->type) ?
+                        bam\ReuseArray($obj->attributes["startFilePos"] + 1, bam\Create(),
+                            $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1, bam\Reuse()) :
+                        bamSwitch($obj->type),
+                    "attributes" => bam\Create($obj->attributes)
+            ]);
+            break;
+        case "Param":
+            $new = bam\Create([
+                    "objName" => bam\Create($type),
+                    "type" => is_string($obj->type) ?
+                        bam\ReuseArray($obj->attributes["startFilePos"] + 1, bam\Create(),
+                            $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1, bam\Reuse()) :
+                        bamSwitch($obj->type),
+                    "byRef" => bam\Create($obj->byRef),
+                    "variadic" => bam\Create($obj->variadic),
+                    "var" => bamSwitch($obj->var),
+                    "default" => bamSwitch($obj->var),
+                    "flags" => bam\Create(handleArr($obj->flags)),
+                    "attributes" => bam\Create($obj->attributes)
+            ]);
+            break;
+        case "UnionType":
+            $new = bam\Create([
+                    "objName" => bam\Create($type),
+                    "types" => bam\Create(handleArr($obj->types)),
+                    "attributes" => bam\Create($obj->attributes)
+            ]);
+            break;
         default:
             if (substr($type, 0, 13) == "Expr_AssignOp") {
                 $new = bam\Create([
@@ -520,7 +833,9 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
             } else if (substr($type, 0, 4) == "Name") { //unsure on parts
                 $new = bam\Create([
                     "objName" => bam\Create($type),
-                    "parts" => bam\Create($obj->parts),
+                    "parts" => is_string($obj->parts) ? bam\ReuseArray($obj->attributes["startFilePos"] + 1, bam\Create(),
+                        $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1, bam\Reuse()) :
+                        is_array($obj->parts) ? bam\Create(handleArr($obj->parts)) : bamSwitch($obj->parts),
                     "attributes" => bam\Create($obj->attributes)
                 ]);
             } else if (substr($type, 0, 17) == "Scalar_MagicConst") {
