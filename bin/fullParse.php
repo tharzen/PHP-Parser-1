@@ -74,7 +74,7 @@ function parse($code, $filename, $pathToFilename) {
     }*/
     try {
         $stmts = $parser->parse($code);
-        print_r($stmts);
+        //print_r($stmts);
         $bamStmts = makeBam($stmts);
         //print_r($bamStmts);
         return $bamStmts;
