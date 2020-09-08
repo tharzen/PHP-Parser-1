@@ -1,9 +1,11 @@
 #!/usr/bin/env php
 <?php
 
-require_once "C:/Users/AlecBlagg/reversible-php/bam.php";
+require_once __DIR__ . "/../../bam.php";
 use bam\{function Reuse, function Create, function Up, function Down, function Offset, function Concat, function Insert,
-    function Delete, function Keep, function Fork, function apply, function andThen, function ReuseArray, function Custom};
+    function Remove, function Keep, function Fork, function apply, function andThen, function ReuseArray, function Custom};
+
+//TODO: when __FILE__ add path to filename edit action, or attach value to __FILE__
 
 foreach ([__DIR__ . '/../../../autoload.php', __DIR__ . '/../vendor/autoload.php'] as $file) {
     if (file_exists($file)) {
@@ -59,9 +61,9 @@ function parse($code, $filename, $pathToFilename) {
     //foreach ($files as $file) {
 
     // do i work based on reading from file or reading code
-    if (strpos($code, '<?php') === 0) {
+    /*if (strpos($code, '<?php') === 0) {
         fwrite(STDERR, "====> Code $code\n");
-    } /*else {
+    }*/ /*else {
         if (!file_exists($file)) {
             fwrite(STDERR, "File $file does not exist.\n");
             exit(1);
@@ -75,8 +77,6 @@ function parse($code, $filename, $pathToFilename) {
         print_r($stmts);
         $bamStmts = makeBam($stmts);
         //print_r($bamStmts);
-        $res = apply($bamStmts, $code);
-        print_r($res);
         return $bamStmts;
         //echo "result\n\n";
         /*print_r($stmts);
@@ -788,7 +788,7 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
                     "objName" => Create($type),
                     "parts" => is_string($obj->parts) ? Down(Offset($obj->attributes["startFilePos"] + 1,
                         $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1)) :
-                        is_array($obj->parts) ? Create(handleArr($obj->parts)) : bamSwitch($obj->parts),
+                        (is_array($obj->parts) ? Create(handleArr($obj->parts)) : bamSwitch($obj->parts)),
                     "attributes" => Create($obj->attributes)
                 ]);
             } else if (substr($type, 0, 17) == "Scalar_MagicConst") {
