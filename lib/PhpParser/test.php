@@ -1,4 +1,5 @@
 <?php
+// comment
 if ( ! isset( $wp_did_header ) ) {
 
     $wp_did_header = true;
