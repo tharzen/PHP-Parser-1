@@ -1,9 +1,6 @@
 #!/usr/bin/env php
 <?php
 
-require_once "C:/Users/AlecBlagg/reversible-php/bam.php";
-use bam;
-
 foreach ([__DIR__ . '/../../../autoload.php', __DIR__ . '/../vendor/autoload.php'] as $file) {
     if (file_exists($file)) {
         require $file;
@@ -72,14 +69,6 @@ foreach ($files as $file) {
     } else {
         try {
             $stmts = $parser->parse($code);
-            $bamStmts = makeBam($stmts);
-            $res = bam\apply($bamStmts, $code);
-            print_r($res);
-            //echo "result\n\n";
-            /*print_r($stmts);
-            foreach ($stmts as $bamThing) {
-                $bamThing = recApply($bamThing, $code);
-            }*/
         } catch (PhpParser\Error $error) {
             $message = formatErrorMessage($error, $code, $attributes['with-column-info']);
             fwrite(STDERR, $message . "\n");
