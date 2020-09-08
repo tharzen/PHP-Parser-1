@@ -3,7 +3,7 @@
 
 require_once __DIR__ . "/../../bam.php";
 use bam\{function Reuse, function Create, function Up, function Down, function Offset, function Concat, function Insert,
-    function Remove, function Keep, function Fork, function apply, function andThen, function ReuseArray, function Custom};
+    function Remove, function Keep, function Fork, function apply, function andThen, function ReuseArray, function Custom, function stringOf};
 
 //TODO: when __FILE__ add path to filename edit action, or attach value to __FILE__
 
@@ -76,7 +76,7 @@ function parse($code, $filename, $pathToFilename) {
         $stmts = $parser->parse($code);
         //print_r($stmts);
         $bamStmts = makeBam($stmts);
-        //print_r($bamStmts);
+        //echo stringOf($bamStmts);//print_r($bamStmts);
         return $bamStmts;
         //echo "result\n\n";
         /*print_r($stmts);
@@ -116,6 +116,9 @@ function makeBam($stmts) {
 
 function handleArr($exprs) {
     //echo "\n\nhandleExprs\n\n";
+    if(!is_array($exprs)) {
+      return Create($exprs);
+    }
     $exprArr = [];
     //print_r($exprs);
     foreach ($exprs as $expr) {
@@ -276,7 +279,7 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
             break;
         case "Expr_Closure":
             $new = Create([
-                "static" => Create($obj->expr),
+                "static" => Create($obj->static),
                 "byRef" => Create($obj->byRef),
                 "params" => Create($obj->params),
                 "uses" => Create($obj->uses),
@@ -438,7 +441,7 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
         case "Stmt_Class":
             $new = Create([
                 "objName" => Create($type),
-                "flag" => Create($obj->flag),
+                "flags" => Create($obj->flags),
                 "name" => is_string($obj->name) ?
                     Down(Offset($obj->attributes["startFilePos"] + 1,
                         $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1)) :
