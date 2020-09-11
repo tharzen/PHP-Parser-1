@@ -236,4 +236,8 @@ class Comment implements \JsonSerializable
             'endTokenPos' => $this->endTokenPos,
         ];
     }
+
+    public function getType() : string {
+        return 'Comment';
+    }
 }
