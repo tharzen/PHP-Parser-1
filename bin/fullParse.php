@@ -200,7 +200,8 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
                     function($x) {return str_replace("\\n", "\n", $x);},
                     function($editAction, $x, $oldResult) {
                       return $editAction; //str_replace("\n", "\\n", $x);
-                    }),
+                    },
+                    "String process"),
                     // TODO create edit action that does transformation for all special characters
                 "attributes" => Create($obj->attributes)
             ], $obj);
