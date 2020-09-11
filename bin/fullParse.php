@@ -198,7 +198,9 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
                 "value" => Custom(Down(Offset($obj->attributes["startFilePos"] + 1,
                     $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1)),
                     function($x) {return str_replace("\\n", "\n", $x);},
-                    function($x) {return str_replace("\n", "\\n", $x);}),
+                    function($editAction, $x, $oldResult) {
+                      return $editAction; //str_replace("\n", "\\n", $x);
+                    }),
                     // TODO create edit action that does transformation for all special characters
                 "attributes" => Create($obj->attributes)
             ], $obj);
