@@ -152,7 +152,7 @@ function bamSwitch($obj, $filename) { //should i go through arrays and bam items
         return null;
     }
     if (is_string($obj)) {
-        return $obj;
+        return Create($obj);
         //what to do here
     }
     $type = $obj->getType();
