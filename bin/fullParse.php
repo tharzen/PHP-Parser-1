@@ -2,8 +2,28 @@
 <?php
 
 require_once __DIR__ . "/../../bam.php";
-use bam\{function Reuse, function Create, function Up, function Down, function Offset, function Concat, function Insert,
-    function Remove, function Keep, function Fork, function apply, function andThen, function ReuseArray, function Custom, function stringOf};
+use bam\{
+    function Create, function Insert, function Reuse,
+    function Up,
+    function ForgivingDown as Down,
+    function RemoveExcept, function Remove, function RemoveAll,
+    function Custom, function Lens, function BLens,
+    function Replace, function Keep,
+    function Concat, function Prepend, function Append,
+    function apply,
+    function andThen,
+    function access,
+    function Offset,
+    function Interval,
+    function stringOf,
+    function uneval,
+    function setDebug as setBamDebug,
+//    function Sequence,
+//    function ListElem,
+//    function ContextElem,
+    function merge,
+    function backPropagate
+};
 
 //TODO: when __FILE__ add path to filename edit action, or attach value to __FILE__
 
@@ -122,7 +142,7 @@ function handleArr($exprs) {
         //echo print_r($expr);
         array_push($exprArr, bamSwitch($expr));
     }
-    return $exprArr;
+    return Create($exprArr);
 }
 
 function bamSwitch($obj) { //should i go through arrays and bam items, some things with names need to be checked
@@ -189,11 +209,35 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
             ], $obj);
             break;
         case "Scalar_String":
+            $new = Create([
+                "value" => Custom(Down(Offset($obj->attributes["startFilePos"] + 1, // Remove the double quotes
+                    $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1)),
+                    function($x) {return str_replace("\\n", "\n", $x);},
+                    function($editAction, $x, $oldResult) {
+                        return $editAction; //str_replace("\n", "\\n", $x);
+                    },
+                    "String process"),
+                // TODO create edit action that does transformation for all special characters
+                "attributes" => Create($obj->attributes)
+            ], $obj);
+            break;
         case "Scalar_EncapsedStringPart":
+            $new = Create([
+                "value" => Custom(Down(Offset($obj->attributes["startFilePos"],
+                    $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] + 1)),
+                    function($x) {return str_replace("\\n", "\n", $x);},
+                    function($editAction, $x, $oldResult) {
+                        return $editAction; //str_replace("\n", "\\n", $x);
+                    },
+                    "String process"),
+                // TODO create edit action that does transformation for all special characters
+                "attributes" => Create($obj->attributes)
+            ], $obj);
+            break;
         case "Stmt_InlineHTML":
             $new = Create([
-                "value" => Custom(Down(Offset($obj->attributes["startFilePos"] + 1,
-                    $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1)),
+                "value" => Custom(Down(Offset($obj->attributes["startFilePos"],
+                    $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] + 1)),
                     function($x) {return str_replace("\\n", "\n", $x);},
                     function($editAction, $x, $oldResult) {
                         return $editAction; //str_replace("\n", "\\n", $x);
@@ -207,13 +251,13 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
         // Delete($obj->attributes["startFilePos"] + 1, Keep($obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1), Down(Offset(0, 0))
         case "Stmt_Echo":
             $new = Create([
-                "exprs" => Create(handleArr($obj->exprs)),
+                "exprs" => handleArr($obj->exprs),
                 "attributes" => Create($obj->attributes)
             ], $obj);
             break;
         case "Expr_Array": // might need to do bamswitch stuff on items
             $new = Create([
-                "items" => Create(handleArr($obj->items)),
+                "items" => handleArr($obj->items),
                 "attributes" => Create($obj->attributes)
             ], $obj);
             break;
@@ -284,7 +328,7 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
                 "params" => Create($obj->params),
                 "uses" => Create($obj->uses),
                 "returnType" => bamSwitch($obj->returnType),
-                "stmts" => Create(handleArr($obj->stmts)),
+                "stmts" => handleArr($obj->stmts),
                 "attributes" => Create($obj->attributes)
             ], $obj);
             break;
@@ -309,7 +353,7 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
         case "Expr_FuncCall":
             $new = Create([
                 "name" => bamSwitch($obj->name),
-                "args" => Create(handleArr($obj->args)),
+                "args" => handleArr($obj->args),
                 "attributes" => Create($obj->attributes)
             ], $obj);
             break;
@@ -332,13 +376,13 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
         case "Stmt_Static":
         case "Stmt_Unset":
             $new = Create([
-                "vars" => Create(handleArr($obj->vars)),
+                "vars" => handleArr($obj->vars),
                 "attributes" => Create($obj->attributes)
             ], $obj);
             break;
         case "Expr_List": //figure out what items are
             $new = Create([
-                "items" => Create(handleArr($obj->items)),
+                "items" => handleArr($obj->items),
                 "attributes" => Create($obj->attributes)
             ], $obj);
             break;
@@ -349,14 +393,14 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
                     Down(Offset($obj->attributes["startFilePos"] + 1,
                         $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1)) :
                     bamSwitch($obj->name),
-                "args" => Create(handleArr($obj->args)),
+                "args" => handleArr($obj->args),
                 "attributes" => Create($obj->attributes)
             ], $obj);
             break;
         case "Expr_New":
             $new = Create([
                 "class" => bamSwitch($obj->class),
-                "args" => Create(handleArr($obj->args)),
+                "args" => handleArr($obj->args),
                 "attributes" => Create($obj->attributes)
             ], $obj);
             break;
@@ -382,7 +426,7 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
         case "Expr_ShellExec":
         case "Scalar_Encapsed":
             $new = Create([
-                "parts" => Create(handleArr($obj->parts)),
+                "parts" => handleArr($obj->parts),
                 "attributes" => Create($obj->attributes)
             ], $obj);
             break;
@@ -393,7 +437,7 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
                     Down(Offset($obj->attributes["startFilePos"] + 1,
                         $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1)) :
                     bamSwitch($obj->name),
-                "args" => Create(handleArr($obj->args)),
+                "args" => handleArr($obj->args),
                 "attributes" => Create($obj->attributes)
             ], $obj);
             break;
@@ -425,16 +469,16 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
         case "Stmt_While":
             $new = Create([
                 "cond" => bamSwitch($obj->cond),
-                "stmts" => Create(handleArr($obj->stmts)),
+                "stmts" => handleArr($obj->stmts),
                 "attributes" => Create($obj->attributes)
             ], $obj);
             break;
         case "Stmt_Catch":
             $new = Create([
                 "objName" => Create($type),
-                "types" => Create(handleArr($obj->types)),
+                "types" => handleArr($obj->types),
                 "var" => bamSwitch($obj->var),
-                "stmts" => Create(handleArr($obj->stmts)),
+                "stmts" => handleArr($obj->stmts),
                 "attributes" => Create($obj->attributes)
             ], $obj);
             break;
@@ -446,9 +490,9 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
                     Down(Offset($obj->attributes["startFilePos"] + 1,
                         $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1)) :
                     bamSwitch($obj->name),
-                "implements" => Create(handleArr($obj->implements)),
+                "implements" => handleArr($obj->implements),
                 "extends" => bamSwitch($obj->extends),
-                "stmts" => Create(handleArr($obj->stmts)),
+                "stmts" => handleArr($obj->stmts),
                 "attributes" => Create($obj->attributes)
             ], $obj);
             break;
@@ -456,7 +500,7 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
             $new = Create([
                 "objName" => Create($type),
                 "flags" => Create($obj->flags),
-                "consts" => Create(handleArr($obj->consts)),
+                "consts" => handleArr($obj->consts),
                 "attributes" => Create($obj->attributes)
             ], $obj);
             break;
@@ -471,22 +515,22 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
                     bamSwitch($obj->name),
                 "params" => Create($obj->params),
                 "returnType" => bamSwitch($obj->returnType),
-                "stmts" => Create(handleArr($obj->stmts)),
+                "stmts" => handleArr($obj->stmts),
                 "attributes" => Create($obj->attributes)
             ], $obj);
             break;
         case "Stmt_Const":
             $new = Create([
                 "objName" => Create($type),
-                "consts" => Create(handleArr($obj->consts)),
+                "consts" => handleArr($obj->consts),
                 "attributes" => Create($obj->attributes)
             ], $obj);
             break;
         case "Stmt_Declare":
             $new = Create([
                 "objName" => Create($type),
-                "declares" => Create(handleArr($obj->declares)),
-                "stmts" => Create(handleArr($obj->stmts)),
+                "declares" => handleArr($obj->declares),
+                "stmts" => handleArr($obj->stmts),
                 "attributes" => Create($obj->attributes)
             ], $obj);
             break;
@@ -505,17 +549,17 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
         case "Stmt_Finally":
             $new = Create([
                 "objName" => Create($type),
-                "stmts" => Create(handleArr($obj->stmts)),
+                "stmts" => handleArr($obj->stmts),
                 "attributes" => Create($obj->attributes)
             ], $obj);
             break;
         case "Stmt_For":
             $new = Create([
                 "objName" => Create($type),
-                "init" => Create(handleArr($obj->init)),
-                "cond" => Create(handleArr($obj->cond)),
-                "loop" => Create(handleArr($obj->loop)),
-                "stmts" => Create(handleArr($obj->stmts)),
+                "init" => handleArr($obj->init),
+                "cond" => handleArr($obj->cond),
+                "loop" => handleArr($obj->loop),
+                "stmts" => handleArr($obj->stmts),
                 "attributes" => Create($obj->attributes)
             ], $obj);
             break;
@@ -526,7 +570,7 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
                 "keyVar" => bamSwitch($obj->keyVar),
                 "byRef" => Create($obj->byRef),
                 "valueVar" => bamSwitch($obj->valueVar),
-                "stmts" => Create(handleArr($obj->stmts))
+                "stmts" => handleArr($obj->stmts)
             ], $obj);
             break;
         case "Stmt_Function":
@@ -539,7 +583,7 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
                     bamSwitch($obj->name),
                 "params" => Create($obj->params),
                 "returnType" => bamSwitch($obj->returnType),
-                "stmts" => Create(handleArr($obj->stmts)),
+                "stmts" => handleArr($obj->stmts),
                 "attributes" => Create($obj->attributes)
             ], $obj);
             break;
@@ -548,7 +592,7 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
                 "objName" => Create($type),
                 "type" => Create($obj->type),
                 "prefix" => bamSwitch($obj->prefix),
-                "uses" => Create(handleArr($obj->uses)),
+                "uses" => handleArr($obj->uses),
                 "attributes" => Create($obj->attributes)
             ], $obj);
             break;
@@ -564,8 +608,8 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
             $new = Create([
                 "objName" => Create($type),
                 "cond" => bamSwitch($obj->cond),
-                "stmts" => Create(handleArr($obj->stmts)),
-                "elseifs" => Create(handleArr($obj->elseifs)),
+                "stmts" => handleArr($obj->stmts),
+                "elseifs" => handleArr($obj->elseifs),
                 "else" => bamSwitch($obj->else),
                 "attributes" => Create($obj->attributes)
             ], $obj);
@@ -577,8 +621,8 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
                     Down(Offset($obj->attributes["startFilePos"] + 1,
                         $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1)) :
                     bamSwitch($obj->name),
-                "extends" => Create(handleArr($obj->extends)),
-                "stmts" => Create(handleArr($obj->stmts)),
+                "extends" => handleArr($obj->extends),
+                "stmts" => handleArr($obj->stmts),
                 "attributes" => Create($obj->attributes)
             ], $obj);
             break;
@@ -586,7 +630,7 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
             $new = Create([
                 "objName" => Create($type),
                 "name" => bamSwitch($obj->name),
-                "stmts" => Create(handleArr($obj->stmts)),
+                "stmts" => handleArr($obj->stmts),
                 "attributes" => Create($obj->attributes)
             ], $obj);
             break;
@@ -594,7 +638,7 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
             $new = Create([
                 "objName" => Create($type),
                 "flags" => Create($obj->flags),
-                "props" => Create(handleArr($obj->props)),
+                "props" => handleArr($obj->props),
                 "type" => is_string($obj->type) ?
                     Down(Offset($obj->attributes["startFilePos"] + 1,
                         $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1)) :
@@ -625,7 +669,7 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
             $new = Create([
                 "objName" => Create($type),
                 "cond" => bamSwitch($obj->cond),
-                "cases" => Create(handleArr($obj->cases)),
+                "cases" => handleArr($obj->cases),
                 "attributes" => Create($obj->attributes)
             ], $obj);
             break;
@@ -636,23 +680,23 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
                     Down(Offset($obj->attributes["startFilePos"] + 1,
                         $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1)) :
                     bamSwitch($obj->name),
-                "stmts" => Create(handleArr($obj->stmts)),
+                "stmts" => handleArr($obj->stmts),
                 "attributes" => Create($obj->attributes)
             ], $obj);
             break;
         case "Stmt_TraitUse":
             $new = Create([
                 "objName" => Create($type),
-                "traits" => Create(handleArr($obj->traits)),
-                "adaptations" => Create(handleArr($obj->adaptations)),
+                "traits" => handleArr($obj->traits),
+                "adaptations" => handleArr($obj->adaptations),
                 "attributes" => Create($obj->attributes)
             ], $obj);
             break;
         case "Stmt_TryCatch":
             $new = Create([
                 "objName" => Create($type),
-                "stmts" => Create(handleArr($obj->stmts)),
-                "catches" => Create(handleArr($obj->catches)),
+                "stmts" => handleArr($obj->stmts),
+                "catches" => handleArr($obj->catches),
                 "finally" => bamSwitch($obj->finally),
                 "attributes" => Create($obj->attributes)
             ], $obj);
@@ -661,7 +705,7 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
             $new = Create([
                 "objName" => Create($type),
                 "type" => Create($obj->type),
-                "uses" => Create(handleArr($obj->uses)),
+                "uses" => handleArr($obj->uses),
                 "attributes" => Create($obj->attributes)
             ], $obj);
             break;
@@ -701,7 +745,7 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
                     Down(Offset($obj->attributes["startFilePos"] + 1,
                         $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1)) :
                     bamSwitch($obj->method),
-                "insteadOf" => Create(handleArr($obj->insteadOf)),
+                "insteadOf" => handleArr($obj->insteadOf),
                 "attributes" => Create($obj->attributes)
             ], $obj);
             break;
@@ -754,14 +798,14 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
                 "variadic" => Create($obj->variadic),
                 "var" => bamSwitch($obj->var),
                 "default" => bamSwitch($obj->var),
-                "flags" => Create(handleArr($obj->flags)),
+                "flags" => handleArr($obj->flags),
                 "attributes" => Create($obj->attributes)
             ], $obj);
             break;
         case "UnionType":
             $new = Create([
                 "objName" => Create($type),
-                "types" => Create(handleArr($obj->types)),
+                "types" => handleArr($obj->types),
                 "attributes" => Create($obj->attributes)
             ], $obj);
             break;
@@ -791,7 +835,7 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
                     "objName" => Create($type),
                     "parts" => is_string($obj->parts) ? Down(Offset($obj->attributes["startFilePos"] + 1,
                         $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1)) :
-                        (is_array($obj->parts) ? Create(handleArr($obj->parts)) : bamSwitch($obj->parts)),
+                        (is_array($obj->parts) ? handleArr($obj->parts) : bamSwitch($obj->parts)),
                     "attributes" => Create($obj->attributes)
                 ], $obj);
             } else if (substr($type, 0, 17) == "Scalar_MagicConst") {
