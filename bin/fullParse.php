@@ -21,8 +21,54 @@ use bam\{
 //    function ListElem,
 //    function ContextElem,
     function merge,
-    function backPropagate
+    function backPropagate,
+    function isKeep,
+    function isPrepend,
+    function isAppend,
+    function isReplace,
+    function isDown,
+    function isConcat,
+    function isPureNew,
+    function isConst,
+    function valueIfConst,
+    function isEditAction,
+    function SameDownAs,
+    function outLength,
+    function LessThanUndefined,
+    function PlusUndefined,
+    function MinUndefined
 };
+use \bam\transform\{
+  function postMap,
+  function extractKeep,
+  function extractReplace,
+  function extractKeepOfReplace};
+
+// Source string    interpreted string
+// src\nStr\ning => src
+//                  str
+//                  ing
+// Given an $inContext NULL | Up(Interval($start, ....)) on the interpreted string
+// Given a $length on the interpreted string
+// Given $escaped an array of [position in source string, oldLength] of all the positions of characters that reduced to a single character
+// Computes [$deltaStart, $deltaLength] such that the interval Offset($start, $length) valid in interpreted string
+// is transformed to some valid Offset($start + $deltaStart, $length + $deltaLength) valid in source string.
+function computeDeltaOffset($inContext, $length, &$escaped) {
+  $inOffset = $inContext === NULL ? 0 : $inContext->keyOrOffset->count;
+  $deltaLength = 0;
+  $deltaStart = 0;
+  $length = MinUndefined($length, $inContext === NULL ? NULL : $inContext->keyOrOffset->newLength);
+  forEach($escaped as $key => list($position, $positionDeltaLength)) {
+    if($position - $deltaStart <= $inOffset) {
+      $deltaStart += $positionDeltaLength;
+    } else {
+      if(LessThanUndefined($position - $deltaStart - $deltaLength, PlusUndefined($inOffset, $length))) {
+        $deltaLength += $positionDeltaLength;
+      }
+    }
+  }
+  return [$deltaStart, $deltaLength];
+}
 
 foreach ([__DIR__ . '/../../../autoload.php', __DIR__ . '/../vendor/autoload.php'] as $file) {
     if (file_exists($file)) {
@@ -208,15 +254,85 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
             ], $obj);
             break;
         case "Scalar_String":
+            $l = NULL;
+            $l = Lens(
+              function($sourceString) use ($obj) {
+                //echo "sourceString:$sourceString\n";
+                return $obj->value; // Correct implementation !
+              },
+              function($editAction, $sourceString, $string) {
+                $quoteType = $sourceString[0];
+                // Let's 1) find the indices where characters were contracted:
+                //  
+                // 2) change offsets in edit action so that they are inserting or deleting at the correct place
+                // 3) change the inserted strings so that they 
+                if($quoteType == "'" || $quoteType == '"') {
+                  $escaped = [];
+                  $innerString = substr($sourceString, 1, strlen($sourceString) - 2);
+                  $possibleEscapes = $quoteType == "'" ? 
+                     "/\\\\\\\\|\\\\'/" :"/\\\\\\\\|\\\\[nrtvef\$\"]|\\\\[0-7]{1,3}|\\\\x[0-9A-Fa-f]{1,2}|\\\\u\\{[0-9A-Fa-f]+\\}/";
+                  preg_match_all($possibleEscapes, $innerString, $escaped, PREG_OFFSET_CAPTURE);
+                  //echo "positions in <$innerString> : ".uneval($escaped), "\n";
+                  // Contains an array of [position, delta length at this position]
+                  $escaped = array_map(function($matchPosition) {
+                    $lengthOfResultingChar = 1;
+                    if(substr($matchPosition[0], 0, 2) == "\\u") {
+                      if(class_exists("IntlChar")) {
+                        $lengthOfResultingChar = strlen(IntlChar::chr($matchPosition[0]));
+                      } else {
+                        $lengthOfResultingChar = strlen(json_decode(
+                          '\u'.substr($matchPosition[0], 3, strlen($matchPosition[0])-4)));
+                      }
+                    }
+                    return [$matchPosition[1], strlen($matchPosition[0]) - $lengthOfResultingChar];
+                  }, $escaped[0]);
+                  $convertConst = $quoteType == "'" ? function($v) {
+                    return str_replace(['\\', "'"], [ "\\\\","\\'"], $v);
+                  } : function($v) {
+                    return str_replace(["\\",  "\n", "\r", "\t", "\v", "\e", "\f", "$",  "\""],
+                                       ["\\\\","\\n","\\r","\\t","\\v","\\e","\\f","\\$","\\\""], $v);
+                  };
+                  //echo "Calling Postmap on ",uneval($editAction, ""),"\n";
+                  $editActionOnOriginal = postMap($editAction, function($edit, $inContext) use(&$escaped, &$convertConst) {
+                    if(isConst($edit)) { // Works with Prepend and Append the same way.
+                      $v = valueIfConst($edit);
+                      $newV = $convertConst($v);
+                      //echo "transforming ".uneval($v)," => ",uneval($newV),"\n";
+                      return isEditAction($edit) ? Create($newV) : $newV;
+                    } else if(isDown($edit)) {
+                      // Need to offset the start and end positions since they operate on input.
+                      list($deltaStart, $deltaLength) = computeDeltaOffset(Up($edit->keyOrOffset, $inContext), NULL, $escaped);
+                      return SameDownAs($edit, Offset($edit->keyOrOffset->count + $deltaStart, PlusUndefined($edit->keyOrOffset->newLength, $deltaLength)), $edit->subAction);
+                    } else if(isReplace($edit)) {
+                      list($inCount, $outCount, $left, $right) = extractReplace($edit);
+                      list($deltaStart, $deltaLength) = computeDeltaOffset($inContext, $inCount, $escaped);
+                      $outCountDelta = outLength($edit->first, $edit->replaceCount + $deltaLength);
+                      if($outCountDelta === NULL) $outCountDelta = $outCount;
+                      return Concat($outCountDelta, $edit->first, $edit->second, $edit->replaceCount + $deltaLength);
+                    }
+                    return $edit;
+                  });
+                  //echo "Result is ",uneval(Keep(1, $editActionOnOriginal), ""),"\n";
+                  return Keep(1, $editActionOnOriginal); // For the first quote
+                } else if($quoteType == '"') {
+                  
+                } else /*if($quoteType == "<")*/ { // heredoc or nowdoc syntax
+                  $is_heredoc = $sourceString[3] === "'";
+                  if($is_heredoc) {
+                    
+                  } else { // nowdoc.
+                    
+                  }
+                }
+                die("unsupported back-propagation case in Scalar_String $quoteType, source is $sourceString");
+              },
+              "Source string to string" 
+            );
+            // We replace the value by the provided edit action
             $new = Create([
-                "value" => Custom(Down(Offset($obj->attributes["startFilePos"] + 1, // Remove the double quotes
-                    $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1)),
-                    function($x) {return str_replace("\\n", "\n", $x);},
-                    function($editAction, $x, $oldResult) {
-                        return $editAction; //str_replace("\n", "\\n", $x);
-                    },
-                    "String process"),
-                // TODO create edit action that does transformation for all special characters
+                "value" => Custom(Down(Interval($obj->attributes["startFilePos"],
+                    $obj->attributes["endFilePos"] + 1)),
+                    $l),
                 "attributes" => Create($obj->attributes)
             ], $obj);
             break;
