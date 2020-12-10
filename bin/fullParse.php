@@ -266,65 +266,121 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
                 //  
                 // 2) change offsets in edit action so that they are inserting or deleting at the correct place
                 // 3) change the inserted strings so that they 
-                if($quoteType == "'" || $quoteType == '"') {
-                  $escaped = [];
-                  $innerString = substr($sourceString, 1, strlen($sourceString) - 2);
-                  $possibleEscapes = $quoteType == "'" ? 
-                     "/\\\\\\\\|\\\\'/" :"/\\\\\\\\|\\\\[nrtvef\$\"]|\\\\[0-7]{1,3}|\\\\x[0-9A-Fa-f]{1,2}|\\\\u\\{[0-9A-Fa-f]+\\}/";
+                $stringSyntax = $quoteType == "'" || $quoteType == '"';
+                $docSyntax = !$stringSyntax;
+                $escaped = [[]];
+                $innerStringStart = 1;
+                $innerStringLength = strlen($sourceString) - 2;
+                $is_heredoc = false;
+                $is_nowdoc = false;
+                if($docSyntax) {
+                  $is_nowdoc = $sourceString[3] === "'";
+                  $is_heredoc = !$is_nowdoc;
+                  $innerStringStart = strpos($sourceString, "\n") + 1;
+                  $startTagPosition = $is_nowdoc ? 4 : 3;
+                  $endTag = substr($sourceString, $startTagPosition,
+                         ($sourceString[$innerStringStart - 2] == "\r" ? $innerStringStart - 3 : $innerStringStart - 2) - $startTagPosition - ($is_nowdoc ? 1 : 0) + 1);
+                  $endTagPosition = strlen($sourceString) - strlen($endTag);
+                  $endOfStringContent = $endTagPosition - 1;
+                  if($sourceString[$endOfStringContent] === "\n") $endOfStringContent--;
+                  if($sourceString[$endOfStringContent] === "\r") $endOfStringContent--;
+                  $innerStringLength = $endOfStringContent - $innerStringStart + 1;
+                }
+                $innerString = substr($sourceString, $innerStringStart, $innerStringLength);
+                $possibleEscapes =
+                  $quoteType == "'" ? "/\\\\\\\\|\\\\'/" : (
+                  $quoteType == "\"" || $is_heredoc ?  "/\\\\\\\\|\\\\[nrtvef\$\"]|\\\\[0-7]{1,3}|\\\\x[0-9A-Fa-f]{1,2}|\\\\u\\{[0-9A-Fa-f]+\\}/" : (
+                    "" // nowdoc
+                  ));
+                if($possibleEscapes != "") {
                   preg_match_all($possibleEscapes, $innerString, $escaped, PREG_OFFSET_CAPTURE);
-                  //echo "positions in <$innerString> : ".uneval($escaped), "\n";
-                  // Contains an array of [position, delta length at this position]
-                  $escaped = array_map(function($matchPosition) {
-                    $lengthOfResultingChar = 1;
-                    if(substr($matchPosition[0], 0, 2) == "\\u") {
-                      if(class_exists("IntlChar")) {
-                        $lengthOfResultingChar = strlen(IntlChar::chr($matchPosition[0]));
-                      } else {
-                        $lengthOfResultingChar = strlen(json_decode(
-                          '\u'.substr($matchPosition[0], 3, strlen($matchPosition[0])-4)));
-                      }
+                }
+                //echo "positions in <$innerString> : ".uneval($escaped), "\n";
+                // Contains an array of [position, delta length at this position]
+                $escaped = array_map(function($matchPosition) {
+                  $lengthOfResultingChar = 1;
+                  if(substr($matchPosition[0], 0, 2) == "\\u") {
+                    if(class_exists("IntlChar")) {
+                      $lengthOfResultingChar = strlen(IntlChar::chr($matchPosition[0]));
+                    } else {
+                      $lengthOfResultingChar = strlen(json_decode(
+                        '\u'.substr($matchPosition[0], 3, strlen($matchPosition[0])-4)));
                     }
-                    return [$matchPosition[1], strlen($matchPosition[0]) - $lengthOfResultingChar];
-                  }, $escaped[0]);
-                  $convertConst = $quoteType == "'" ? function($v) {
+                  }
+                  return [$matchPosition[1], strlen($matchPosition[0]) - $lengthOfResultingChar];
+                }, $escaped[0]);
+                //echo "positions in <$innerString> : ".uneval($escaped), "\n";
+                $convertConst =
+                  $quoteType == "'" ? function($v) {
                     return str_replace(['\\', "'"], [ "\\\\","\\'"], $v);
-                  } : function($v) {
+                  } : (
+                  $quoteType == "\"" ? function($v) {
                     return str_replace(["\\",  "\n", "\r", "\t", "\v", "\e", "\f", "$",  "\""],
                                        ["\\\\","\\n","\\r","\\t","\\v","\\e","\\f","\\$","\\\""], $v);
-                  };
-                  //echo "Calling Postmap on ",uneval($editAction, ""),"\n";
-                  $editActionOnOriginal = postMap($editAction, function($edit, $inContext) use(&$escaped, &$convertConst) {
-                    if(isConst($edit)) { // Works with Prepend and Append the same way.
-                      $v = valueIfConst($edit);
-                      $newV = $convertConst($v);
-                      //echo "transforming ".uneval($v)," => ",uneval($newV),"\n";
-                      return isEditAction($edit) ? Create($newV) : $newV;
-                    } else if(isDown($edit)) {
-                      // Need to offset the start and end positions since they operate on input.
-                      list($deltaStart, $deltaLength) = computeDeltaOffset(Up($edit->keyOrOffset, $inContext), NULL, $escaped);
-                      return SameDownAs($edit, Offset($edit->keyOrOffset->count + $deltaStart, PlusUndefined($edit->keyOrOffset->newLength, $deltaLength)), $edit->subAction);
-                    } else if(isReplace($edit)) {
-                      list($inCount, $outCount, $left, $right) = extractReplace($edit);
-                      list($deltaStart, $deltaLength) = computeDeltaOffset($inContext, $inCount, $escaped);
-                      $outCountDelta = outLength($edit->first, $edit->replaceCount + $deltaLength);
-                      if($outCountDelta === NULL) $outCountDelta = $outCount;
-                      return Concat($outCountDelta, $edit->first, $edit->second, $edit->replaceCount + $deltaLength);
-                    }
-                    return $edit;
-                  });
-                  //echo "Result is ",uneval(Keep(1, $editActionOnOriginal), ""),"\n";
-                  return Keep(1, $editActionOnOriginal); // For the first quote
-                } else if($quoteType == '"') {
+                  } : (
+                  $is_heredoc ? function($v) { // We could optimize by replacing "\\" by "\\\\" only if necessary.
+                    return str_replace(["\\",  "\v", "\e", "\f", "$"],
+                                       ["\\\\","\\v","\\e","\\f","\\$"], $v);
+                  } : ( function($v) {
+                    return $v;
+                  })));
+                //echo "Calling Postmap on ",uneval($editAction, ""),"\n";
+                $editActionOnOriginal = postMap($editAction, function($edit, $inContext) use(&$escaped, &$convertConst) {
+                  if(isConst($edit)) { // Works with Prepend and Append the same way.
+                    $v = valueIfConst($edit);
+                    $newV = $convertConst($v);
+                    //echo "transforming ".uneval($v)," => ",uneval($newV)," (context is ".uneval($inContext).")\n";
+                    return isEditAction($edit) ? Create($newV) : $newV;
+                  } else if(isDown($edit)) {
+                    // Need to offset the start and end positions since they operate on input.
+                    list($deltaStart, $deltaLength) = computeDeltaOffset(Up($edit->keyOrOffset, $inContext), NULL, $escaped);
+                    $finalEdit = SameDownAs($edit, Offset($edit->keyOrOffset->count + $deltaStart, PlusUndefined($edit->keyOrOffset->newLength, $deltaLength)), $edit->subAction);
+                    //echo "transforming ".uneval($edit)," => ",uneval($finalEdit)," (context is ".uneval($inContext).")\n";
+                    return $finalEdit;
+                  } else if(isReplace($edit)) {
+                    $inCount = $edit->replaceCount;
+                    $outCount = $edit->count;
+                    list($deltaStart, $deltaLength) = computeDeltaOffset($inContext, $inCount, $escaped);
+                    $newFirst = Up(Interval($deltaStart), $edit->first);
+                    $newSecond = Up(Interval($deltaStart), $edit->second);
+                    $newReplaceInCount = $edit->replaceCount + $deltaLength;
+                    $newInCount = $inContext !== NULL ? $inContext->keyOrOffset->newLength : NULL;
+                    //echo "outLength(", uneval($newFirst), ", ", $newInCount, ")\n";
+                    $newOutCount = outLength($newFirst, $newInCount);
+                    //echo "newOutCount == $newOutCount\n";
+                    if($newOutCount === NULL) $newOutCount = $outCount;
+                    $finalEdit = Concat($newOutCount, $newFirst, $newSecond, $newReplaceInCount);
+                    //echo "transforming ".uneval($edit)," => ",uneval($finalEdit)," (context is ".uneval($inContext).")\n";
+                    return $finalEdit;
+                  }
+                  return $edit;
+                });
+                $finalEdit = Keep($innerStringStart, $editActionOnOriginal);
+                //echo "Result is ",uneval($finalEdit, ""),"\n";
+                if($is_heredoc || $is_nowdoc) {
+                  //echo "Test for injections\n";
+                  // Test for injections, and prevent them.
+                  $finalSource = apply($finalEdit, $sourceString);
+                  $tagPrefix = "";
                   
-                } else /*if($quoteType == "<")*/ { // heredoc or nowdoc syntax
-                  $is_heredoc = $sourceString[3] === "'";
-                  if($is_heredoc) {
-                    
-                  } else { // nowdoc.
-                    
+                  while(strpos($finalSource, "\n".$tagPrefix.$endTag.";") !== false) {
+                    //echo "One injection found\n";
+                    // We need to change the EOT. We prefix it with
+                    $tagPrefix = "A".$tagPrefix;
+                  }
+                  if($tagPrefix !== "") {
+                    $finalEdit = merge(
+                      merge(
+                        $finalEdit,
+                        Keep($startTagPosition, Prepend(strlen($tagPrefix), $tagPrefix))
+                      ),
+                      Keep($endTagPosition, Prepend(strlen($tagPrefix), $tagPrefix)));
+                    //echo "Final result is ",uneval($finalEdit, ""),"\n";
+                    $finalSource = apply($finalEdit, $sourceString);
+                    //echo "Final source is '$finalSource'\n";
                   }
                 }
-                die("unsupported back-propagation case in Scalar_String $quoteType, source is $sourceString");
+                return $finalEdit;
               },
               "Source string to string" 
             );
