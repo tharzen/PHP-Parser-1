@@ -59,7 +59,7 @@ function computeDeltaOffset($inContext, $length, &$escaped) {
   $deltaStart = 0;
   $length = MinUndefined($length, $inContext === NULL ? NULL : $inContext->keyOrOffset->newLength);
   forEach($escaped as $key => list($position, $positionDeltaLength)) {
-    if($position - $deltaStart <= $inOffset) {
+    if($position - $deltaStart < $inOffset) {
       $deltaStart += $positionDeltaLength;
     } else {
       if(LessThanUndefined($position - $deltaStart - $deltaLength, PlusUndefined($inOffset, $length))) {
