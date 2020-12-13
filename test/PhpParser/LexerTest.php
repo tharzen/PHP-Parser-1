@@ -35,6 +35,7 @@ class LexerTest extends \PHPUnit\Framework\TestCase
     public function provideTestError() {
         return [
             ["<?php /*", ["Unterminated comment from 1:7 to 1:9"]],
+            ["<?php /*\n", ["Unterminated comment from 1:7 to 2:1"]],
             ["<?php \1", ["Unexpected character \"\1\" (ASCII 1) from 1:7 to 1:7"]],
             ["<?php \0", ["Unexpected null byte from 1:7 to 1:7"]],
             // Error with potentially emulated token
@@ -213,6 +214,30 @@ class LexerTest extends \PHPUnit\Framework\TestCase
                 '',
                 [],
                 []
+            ],
+            // tests PHP 8 T_NAME_* emulation
+            [
+                '<?php Foo\Bar \Foo\Bar namespace\Foo\Bar Foo\Bar\\',
+                ['usedAttributes' => []],
+                [
+                    [Tokens::T_NAME_QUALIFIED, 'Foo\Bar', [], []],
+                    [Tokens::T_NAME_FULLY_QUALIFIED, '\Foo\Bar', [], []],
+                    [Tokens::T_NAME_RELATIVE, 'namespace\Foo\Bar', [], []],
+                    [Tokens::T_NAME_QUALIFIED, 'Foo\Bar', [], []],
+                    [Tokens::T_NS_SEPARATOR, '\\', [], []],
+                ]
+            ],
+            // tests PHP 8 T_NAME_* emulation with reserved keywords
+            [
+                '<?php fn\use \fn\use namespace\fn\use fn\use\\',
+                ['usedAttributes' => []],
+                [
+                    [Tokens::T_NAME_QUALIFIED, 'fn\use', [], []],
+                    [Tokens::T_NAME_FULLY_QUALIFIED, '\fn\use', [], []],
+                    [Tokens::T_NAME_RELATIVE, 'namespace\fn\use', [], []],
+                    [Tokens::T_NAME_QUALIFIED, 'fn\use', [], []],
+                    [Tokens::T_NS_SEPARATOR, '\\', [], []],
+                ]
             ],
         ];
     }

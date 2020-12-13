@@ -3,6 +3,7 @@
 namespace PhpParser\Lexer;
 
 use PhpParser\ErrorHandler;
+use PhpParser\Lexer;
 use PhpParser\LexerTest;
 use PhpParser\Parser\Tokens;
 
@@ -18,6 +19,17 @@ class EmulativeTest extends LexerTest
     public function testReplaceKeywords($keyword, $expectedToken) {
         $lexer = $this->getLexer();
         $lexer->startLexing('<?php ' . $keyword);
+
+        $this->assertSame($expectedToken, $lexer->getNextToken());
+        $this->assertSame(0, $lexer->getNextToken());
+    }
+
+    /**
+     * @dataProvider provideTestReplaceKeywords
+     */
+    public function testReplaceKeywordsUppercase($keyword, $expectedToken) {
+        $lexer = $this->getLexer();
+        $lexer->startLexing('<?php ' . strtoupper($keyword));
 
         $this->assertSame($expectedToken, $lexer->getNextToken());
         $this->assertSame(0, $lexer->getNextToken());
@@ -47,8 +59,23 @@ class EmulativeTest extends LexerTest
         $this->assertSame(0, $lexer->getNextToken());
     }
 
+    /**
+     * @dataProvider provideTestReplaceKeywords
+     */
+    public function testNoReplaceKeywordsAfterNullsafeObjectOperator(string $keyword) {
+        $lexer = $this->getLexer();
+        $lexer->startLexing('<?php ?->' . $keyword);
+
+        $this->assertSame(Tokens::T_NULLSAFE_OBJECT_OPERATOR, $lexer->getNextToken());
+        $this->assertSame(Tokens::T_STRING, $lexer->getNextToken());
+        $this->assertSame(0, $lexer->getNextToken());
+    }
+
     public function provideTestReplaceKeywords() {
         return [
+            // PHP 8.0
+            ['match',         Tokens::T_MATCH],
+
             // PHP 7.4
             ['fn',            Tokens::T_FN],
 
@@ -70,18 +97,21 @@ class EmulativeTest extends LexerTest
         ];
     }
 
+    private function assertSameTokens(array $expectedTokens, Lexer $lexer) {
+        $tokens = [];
+        while (0 !== $token = $lexer->getNextToken($text)) {
+            $tokens[] = [$token, $text];
+        }
+        $this->assertSame($expectedTokens, $tokens);
+    }
+
     /**
      * @dataProvider provideTestLexNewFeatures
      */
     public function testLexNewFeatures($code, array $expectedTokens) {
         $lexer = $this->getLexer();
         $lexer->startLexing('<?php ' . $code);
-
-        $tokens = [];
-        while (0 !== $token = $lexer->getNextToken($text)) {
-            $tokens[] = [$token, $text];
-        }
-        $this->assertSame($expectedTokens, $tokens);
+        $this->assertSameTokens($expectedTokens, $lexer);
     }
 
     /**
@@ -252,6 +282,73 @@ class EmulativeTest extends LexerTest
             ['1_0abc', [
                 [Tokens::T_LNUMBER, '1_0'],
                 [Tokens::T_STRING, 'abc'],
+            ]],
+            ['?->', [
+                [Tokens::T_NULLSAFE_OBJECT_OPERATOR, '?->'],
+            ]],
+            ['#[Attr]', [
+                [Tokens::T_ATTRIBUTE, '#['],
+                [Tokens::T_STRING, 'Attr'],
+                [ord(']'), ']'],
+            ]],
+            ["#[\nAttr\n]", [
+                [Tokens::T_ATTRIBUTE, '#['],
+                [Tokens::T_STRING, 'Attr'],
+                [ord(']'), ']'],
+            ]],
+            // Test interaction of two patch-based emulators
+            ["<<<LABEL\n    LABEL, #[Attr]", [
+                [Tokens::T_START_HEREDOC, "<<<LABEL\n"],
+                [Tokens::T_END_HEREDOC, "    LABEL"],
+                [ord(','), ','],
+                [Tokens::T_ATTRIBUTE, '#['],
+                [Tokens::T_STRING, 'Attr'],
+                [ord(']'), ']'],
+            ]],
+            ["#[Attr] <<<LABEL\n    LABEL,", [
+                [Tokens::T_ATTRIBUTE, '#['],
+                [Tokens::T_STRING, 'Attr'],
+                [ord(']'), ']'],
+                [Tokens::T_START_HEREDOC, "<<<LABEL\n"],
+                [Tokens::T_END_HEREDOC, "    LABEL"],
+                [ord(','), ','],
+            ]],
+        ];
+    }
+
+    /**
+     * @dataProvider provideTestTargetVersion
+     */
+    public function testTargetVersion(string $phpVersion, string $code, array $expectedTokens) {
+        $lexer = $this->getLexer(['phpVersion' => $phpVersion]);
+        $lexer->startLexing('<?php ' . $code);
+        $this->assertSameTokens($expectedTokens, $lexer);
+    }
+
+    public function provideTestTargetVersion() {
+        return [
+            ['8.0', 'match', [[Tokens::T_MATCH, 'match']]],
+            ['7.4', 'match', [[Tokens::T_STRING, 'match']]],
+            // Keywords are not case-sensitive.
+            ['7.4', 'fn', [[Tokens::T_FN, 'fn']]],
+            ['7.4', 'FN', [[Tokens::T_FN, 'FN']]],
+            ['7.3', 'fn', [[Tokens::T_STRING, 'fn']]],
+            ['7.3', 'FN', [[Tokens::T_STRING, 'FN']]],
+            // Tested here to skip testLeaveStuffAloneInStrings.
+            ['8.0', '"$foo?->bar"', [
+                [ord('"'), '"'],
+                [Tokens::T_VARIABLE, '$foo'],
+                [Tokens::T_NULLSAFE_OBJECT_OPERATOR, '?->'],
+                [Tokens::T_STRING, 'bar'],
+                [ord('"'), '"'],
+            ]],
+            ['8.0', '"$foo?->bar baz"', [
+                [ord('"'), '"'],
+                [Tokens::T_VARIABLE, '$foo'],
+                [Tokens::T_NULLSAFE_OBJECT_OPERATOR, '?->'],
+                [Tokens::T_STRING, 'bar'],
+                [Tokens::T_ENCAPSED_AND_WHITESPACE, ' baz'],
+                [ord('"'), '"'],
             ]],
         ];
     }

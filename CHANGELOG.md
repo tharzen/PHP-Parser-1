@@ -1,7 +1,115 @@
-Version 4.6.1-dev
------------------
+Version 4.10.4-dev
+------------------
 
 Nothing yet.
+
+Version 4.10.3 (2020-12-03)
+---------------------------
+
+### Fixed
+
+* Fixed formatting-preserving pretty printing for `"{$x}"`.
+* Ternary expressions are now treated as non-associative in the pretty printer, in order to
+  generate code that is compatible with the parentheses requirement introduced in PHP 8.
+* Removed no longer necessary `error_clear_last()` call in lexer, which may interfere with fatal
+  error handlers if invoked during shutdown.
+
+
+Version 4.10.2 (2020-09-26)
+------------------
+
+### Fixed
+
+* Fixed check for token emulation conflicts with other libraries.
+
+Version 4.10.1 (2020-09-23)
+---------------------------
+
+### Added
+
+* Added support for recovering from a missing semicolon after a property or class constant
+  declaration.
+
+### Fixed
+
+* Fix spurious whitespace in formatting-preserving pretty printer when both removing and adding
+  elements at the start of a list.
+* Fix incorrect case-sensitivity in keyword token emulation.
+
+Version 4.10.0 (2020-09-19)
+---------------------------
+
+### Added
+
+* [PHP 8.0] Added support for attributes. These are represented using a new `AttributeGroup` node
+  containing `Attribute` nodes. A new `attrGroups` subnode is available on all node types that
+  support attributes, i.e. `Stmt\Class_`, `Stmt\Trait_`, `Stmt\Interface_`, `Stmt\Function_`,
+  `Stmt\ClassMethod`, `Stmt\ClassConst`, `Stmt\Property`, `Expr\Closure`, `Expr\ArrowFunction` and
+  `Param`.
+* [PHP 8.0] Added support for nullsafe properties inside interpolated strings, in line with an
+  upstream change.
+
+### Fixed
+
+* Improved compatibility with other libraries that use forward compatibility defines for PHP tokens.
+
+Version 4.9.1 (2020-08-30)
+--------------------------
+
+### Added
+
+* Added support for removing the first element of a list to the formatting-preserving pretty
+  printer.
+
+### Fixed
+
+* Allow member modifiers as part of namespaced names. These were missed when support for other
+  keywords was added.
+
+Version 4.9.0 (2020-08-18)
+--------------------------
+
+### Added
+
+* [PHP 8.0] Added support for named arguments, represented using a new `name` subnode on `Arg`.
+* [PHP 8.0] Added support for static return type, represented like a normal class return type.
+* [PHP 8.0] Added support for throw expression, represented using a new `Expr\Throw_` node. For
+  backwards compatibility reasons, throw expressions in statement context continue to be
+  represented using `Stmt\Throw_`.
+* [PHP 8.0] Added support for keywords as parts of namespaced names.
+
+### Fixed
+
+* Emit parentheses for class constant fetch with complex left-hand-side.
+* Emit parentheses for new/instanceof on complex class expression.
+
+Version 4.8.0 (2020-08-09)
+--------------------------
+
+### Added
+
+* [PHP 8.0] Added support for nullsafe operator, represented using the new
+  `Expr\NullsafePropertyFetch` and `Expr\NullsafeMethodCall` nodes.
+* Added `phpVersion` option to the emulative lexer, which allows controlling the target version to
+  emulate (defaults to the latest available, currently PHP 8.0). This is useful to parse code that
+  uses reserved keywords from newer PHP versions as identifiers.
+
+Version 4.7.0 (2020-07-25)
+--------------------------
+
+### Added
+
+* Add `ParentConnectingVisitor` and `NodeConnectingVisitor` classes.
+* [PHP 8.0] Added support for match expressions. These are represented using a new `Expr\Match_`
+  containing `MatchArm`s.
+* [PHP 8.0] Added support for trailing comma in closure use lists.
+
+### Fixed
+
+* Fixed missing error for unterminated comment with trailing newline (#688).
+* Compatibility with PHP 8.0 has been restored: Namespaced names are now always represented by
+  `T_NAME_*` tokens, using emulationg on older PHP versions. Full support for reserved keywords
+  in namespaced names is not yet present.
 
 Version 4.6.0 (2020-07-02)
 --------------------------
