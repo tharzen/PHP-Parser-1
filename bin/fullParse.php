@@ -116,7 +116,7 @@ function parse($code) {
         'startLine', 'endLine', 'startFilePos', 'endFilePos', 'comments'
     ]]);
     $parser = (new PhpParser\ParserFactory)->create(
-        PhpParser\ParserFactory::ONLY_PHP5,
+        PhpParser\ParserFactory::ONLY_PHP7,
         $lexer
     );
     //foreach ($files as $file) {
@@ -376,7 +376,7 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
                       ),
                       Keep($endTagPosition, Prepend(strlen($tagPrefix), $tagPrefix)));
                     //echo "Final result is ",uneval($finalEdit, ""),"\n";
-                    $finalSource = apply($finalEdit, $sourceString);
+                    //$finalSource = apply($finalEdit, $sourceString);
                     //echo "Final source is '$finalSource'\n";
                   }
                 }
