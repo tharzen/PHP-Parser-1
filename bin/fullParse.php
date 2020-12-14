@@ -322,27 +322,36 @@ function makeBam($stmts) {
     return Create($bamArr);
 }
 
-function handleArr($exprs) {
+function handleArr(&$exprs) {
     //echo "\n\nhandleExprs\n\n";
     if(!is_array($exprs)) {
-        return Create($exprs);
+        echo "handleArr on non-array:", uneval($exprs), "\n";
+        //debug_print_backtrace();
+        return bamSwitch($exprs);
     }
     $exprArr = [];
     //print_r($exprs);
-    foreach ($exprs as $expr) {
+    foreach ($exprs as $k => $expr) {
         //echo print_r($expr);
-        array_push($exprArr, bamSwitch($expr));
+        bamSwitch($exprs[$k]);
+        //array_push($exprArr, bamSwitch($expr));
     }
-    return Create($exprArr);
+    return $exprs;
 }
 
-function bamSwitch($obj) { //should i go through arrays and bam items, some things with names need to be checked
-    if ($obj == null) {
+function bamSwitch(&$obj) { //should i go through arrays and bam items, some things with names need to be checked
+    if ($obj === null) {
         return null;
     }
-    if (is_string($obj)) {
+    if (is_string($obj) || is_integer($obj)) {
         return $obj;
         //what to do here
+    }
+    if(is_array($obj)) {
+      return handleArr($obj);
+    }
+    if(\bam\isEditAction($obj)) {
+      return $obj;
     }
     $type = $obj->getType();
     $new = $obj;
@@ -351,23 +360,10 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
         case "Stmt_Return":
         case "Stmt_Throw":
             $obj->expr = bamSwitch($obj->expr);
-            /*Create([
-                "expr" => bamSwitch($obj->expr),
-                "attributes" => Create($obj->attributes)
-            ], $obj);*/
-            /*$new = Create(\PhpParser\Node\Stmt\Expression::class);
-            //$new = \PhpParser\Node\Stmt\Expression;
-            $obj->expr; //will be its own thing to check
-            $obj->attributes; //check for comments*/
             break;
         case "Expr_Assign":
             $obj->var = bamSwitch($obj->var);
             $obj->expr = bamSwitch($obj->expr);
-            /*$new = Create(\PhpParser\Node\Expr\Assign::class);
-            //$new = \PhpParser\Node\Expr\Assign;
-            $obj->var; // use start and end pos
-            $obj->expr; // will be its own thing to check
-            $obj->attributes; //check for comments*/
             break;
         case "Expr_Variable":
         case "Stmt_Goto":
@@ -376,10 +372,6 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
                     Down(Offset($obj->attributes["startFilePos"] + 1,
                         $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"])) :
                     bamSwitch($obj->name);
-            /*$new = Create(\PhpParser\Node\Expr\Variable::class);
-            //$new = \PhpParser\Node\Expr\Variable;
-            $obj->name; // either string or expr
-            $obj->attributes; //check for comments*/
             break;
         case "Scalar_LNumber":
         case "Scalar_DNumber":
@@ -434,54 +426,28 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
                     },
                     stringEditBackwardsFun(/*hasQuotes*/false, /*isHtml*/true),
                     "inline HTML String process"));
-                // TODO create edit action that does transformation for all special characters
             break;
-        // can also delete the start, keep length
-        // Delete($obj->attributes["startFilePos"] + 1, Keep($obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1), Down(Offset(0, 0))
         case "Stmt_Echo":
-            $new = Create([
-                "exprs" => handleArr($obj->exprs),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+            $obj->exprs = bamSwitch($obj->exprs);
             break;
         case "Expr_Array": // might need to do bamswitch stuff on items
-            $new = Create([
-                "items" => handleArr($obj->items),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+            $obj->items = bamSwitch($obj->items);
             break;
         case "Expr_ArrayDimFetch":
-            $new = Create([
-                "var" => bamSwitch($obj->var),
-                "dim" => bamSwitch($obj->dim),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+            $obj->var = bamSwitch($obj->var);
+            $obj->dim = bamSwitch($obj->dim);
             break;
         case "Expr_ArrayItem":
-            $new = Create([
-                "key" => bamSwitch($obj->key),
-                "value" => bamSwitch($obj->value),
-                "byRef" => Create($obj->byRef),
-                "unpack" => Create($obj->unpack),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+            $obj->key = bamSwitch($obj->key);
+            $obj->value = bamSwitch($obj->value);
             break;
         case "Expr_ArrowFunction": //has this->returnType and returnType???
-            $new = Create([
-                "static" => Create($obj->static),
-                "byRef" => Create($obj->byRef),
-                "params" => Create($obj->params),
-                "returnType" => bamSwitch($obj->returnType),
-                "expr" => bamSwitch($obj->expr),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+            $obj->returnType = bamSwitch($obj->returnType);
+            $obj->expr = bamSwitch($obj->expr);
             break;
         case "Expr_AssignRef":
-            $new = Create([
-                "var" => bamSwitch($obj->var),
-                "expr" => bamSwitch($obj->expr),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+            $obj->var = bamSwitch($obj->var);
+            $obj->expr = bamSwitch($obj->expr);
             break;
         case "Expr_BitwiseNot":
         case "Expr_BooleanNot":
@@ -494,550 +460,315 @@ function bamSwitch($obj) { //should i go through arrays and bam items, some thin
         case "Expr_UnaryMinus":
         case "Expr_UnaryPlus":
         case "Expr_YieldFrom":
-            $new = Create([
-                "expr" => bamSwitch($obj->expr),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+            $obj->expr = bamSwitch($obj->expr);
             break;
         case "Expr_ClassConstFetch":
         case "Expr_StaticPropertyFetch":
-            $new = Create([
-                "class" => bamSwitch($obj->class),
-                "name" => is_string($obj->name) ?
+            $obj->class = bamSwitch($obj->class);
+            $obj->name = is_string($obj->name) ?
                     Down(Offset($obj->attributes["startFilePos"] + 1,
                         $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1)) :
-                    bamSwitch($obj->name),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+                    bamSwitch($obj->name);
             break;
         case "Expr_Closure":
-            $new = Create([
-                "static" => Create($obj->static),
-                "byRef" => Create($obj->byRef),
-                "params" => Create($obj->params),
-                "uses" => Create($obj->uses),
-                "returnType" => bamSwitch($obj->returnType),
-                "stmts" => handleArr($obj->stmts),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+            $obj->returnType = bamSwitch($obj->returnType);
+            $obj->stmts = bamSwitch($obj->stmts);
             break;
         case "Expr_ClosureUse":
-            $new = Create([
-                "var" => bamSwitch($obj->var),
-                "byRef" => Create($obj->byRef),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+            $obj->var = bamSwitch($obj->var);
             break;
         case "Expr_ConstFetch":
-            $new = Create([
-                "name" => bamSwitch($obj->name),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+            $obj->name = bamSwitch($obj->name);
             break;
         case "Expr_Error":
-            $new = Create([
-                "attributes" => Create($obj->attributes)
-            ], $obj);
             break;
         case "Expr_FuncCall":
-            $new = Create([
-                "name" => bamSwitch($obj->name),
-                "args" => handleArr($obj->args),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+            $obj->name = bamSwitch($obj->name);
+            $obj->args = bamSwitch($obj->args);
             break;
         case "Expr_Include":
-            $new = Create([
-                "expr" => bamSwitch($obj->expr),
-                "type" => Create($obj->type),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+            $obj->expr = bamSwitch($obj->expr);
             break;
         case "Expr_Instanceof":
-            $new = Create([
-                "expr" => bamSwitch($obj->expr),
-                "class" => bamSwitch($obj->class),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+            $obj->expr = bamSwitch($obj->expr);
+            $obj->class = bamSwitch($obj->class);
             break;
         case "Expr_Isset":
         case "Stmt_Global":
         case "Stmt_Static":
         case "Stmt_Unset":
-            $new = Create([
-                "vars" => handleArr($obj->vars),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+            $obj->vars = bamSwitch($obj->vars);
             break;
         case "Expr_List": //figure out what items are
-            $new = Create([
-                "items" => handleArr($obj->items),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+            $obj->items = bamSwitch($obj->items);
             break;
         case "Expr_MethodCall":
-            $new = Create([
-                "var" => bamSwitch($obj->var),
-                "name" => is_string($obj->name) ?
+            $obj->var = bamSwitch($obj->var);
+            $obj->name = is_string($obj->name) ?
                     Down(Offset($obj->attributes["startFilePos"] + 1,
                         $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1)) :
-                    bamSwitch($obj->name),
-                "args" => handleArr($obj->args),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+                    bamSwitch($obj->name);
+            $obj->args = bamSwitch($obj->args);
             break;
         case "Expr_New":
-            $new = Create([
-                "class" => bamSwitch($obj->class),
-                "args" => handleArr($obj->args),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+            $obj->class = bamSwitch($obj->class);
+            $obj->args = bamSwitch($obj->args);
             break;
         case "Expr_PostDec":
         case "Expr_PostInc":
         case "Expr_PreDec":
         case "Expr_PreInc":
-            $new = Create([
-                "var" => bamSwitch($obj->var),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+            $obj->var = bamSwitch($obj->var);
             break;
         case "Expr_PropertyFetch":
-            $new = Create([
-                "var" => bamSwitch($obj->var),
-                "name" => is_string($obj->name) ?
+            $obj->var = bamSwitch($obj->var);
+            $obj->name = is_string($obj->name) ?
                     Down(Offset($obj->attributes["startFilePos"] + 1,
                         $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1)) :
-                    bamSwitch($obj->name),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+                    bamSwitch($obj->name);
             break;
         case "Expr_ShellExec":
         case "Scalar_Encapsed":
-            $new = Create([
-                "parts" => handleArr($obj->parts),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+            $obj->parts = bamSwitch($obj->parts);
             break;
         case "Expr_StaticCall":
-            $new = Create([
-                "class" => bamSwitch($obj->class),
-                "name" => is_string($obj->name) ?
+            $obj->class = bamSwitch($obj->class);
+            $obj->name = is_string($obj->name) ?
                     Down(Offset($obj->attributes["startFilePos"] + 1,
                         $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1)) :
-                    bamSwitch($obj->name),
-                "args" => handleArr($obj->args),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+                    bamSwitch($obj->name);
+            $obj->args = bamSwitch($obj->args);
             break;
         case "Expr_Ternary":
-            $new = Create([
-                "cond" => bamSwitch($obj->cond),
-                "if" => bamSwitch($obj->if),
-                "else" => bamSwitch($obj->else),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+            $obj->cond = bamSwitch($obj->cond);
+            $obj->if = bamSwitch($obj->if);
+            $obj->else = bamSwitch($obj->else);
             break;
         case "Expr_Yield":
-            $new = Create([
-                "key" => bamSwitch($obj->key),
-                "value" => bamSwitch($obj->value),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+            $obj->key = bamSwitch($obj->key);
+            $obj->value = bamSwitch($obj->value);
             break;
         case "Stmt_Break":
         case "Stmt_Continue":
-            $new = Create([
-                "num" => bamSwitch($obj->num),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+            $obj->num = bamSwitch($obj->num);
             break;
         case "Stmt_Case":
         case "Stmt_Do":
         case "Stmt_ElseIf":
         case "Stmt_While":
-            $new = Create([
-                "cond" => bamSwitch($obj->cond),
-                "stmts" => handleArr($obj->stmts),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+            $obj->cond = bamSwitch($obj->cond);
+            $obj->stmts = bamSwitch($obj->stmts);
             break;
         case "Stmt_Catch":
-            $new = Create([
-                "objName" => Create($type),
-                "types" => handleArr($obj->types),
-                "var" => bamSwitch($obj->var),
-                "stmts" => handleArr($obj->stmts),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+            $obj->types = bamSwitch($obj->types);
+            $obj->var = bamSwitch($obj->var);
+            $obj->stmts = bamSwitch($obj->stmts);
             break;
         case "Stmt_Class":
-            $new = Create([
-                "objName" => Create($type),
-                "flags" => Create($obj->flags),
-                "name" => is_string($obj->name) ?
+            $obj->name = is_string($obj->name) ?
                     Down(Offset($obj->attributes["startFilePos"] + 1,
                         $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1)) :
-                    bamSwitch($obj->name),
-                "implements" => handleArr($obj->implements),
-                "extends" => bamSwitch($obj->extends),
-                "stmts" => handleArr($obj->stmts),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+                    bamSwitch($obj->name);
+            $obj->implements = bamSwitch($obj->implements);
+            $obj->extends = bamSwitch($obj->extends);
+            $obj->stmts = bamSwitch($obj->stmts);
             break;
         case "Stmt_ClassConst":
-            $new = Create([
-                "objName" => Create($type),
-                "flags" => Create($obj->flags),
-                "consts" => handleArr($obj->consts),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+            $obj->consts = bamSwitch($obj->consts);
             break;
-        case "Stmt_ClassMethod": //params?? handleArr??
-            $new = Create([
-                "objName" => Create($type),
-                "flags" => Create($obj->flags),
-                "byRef" => Create($obj->byRef),
-                "name" => is_string($obj->name) ?
+        case "Stmt_ClassMethod":
+            $obj->name = is_string($obj->name) ?
                     Down(Offset($obj->attributes["startFilePos"] + 1,
                         $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1)) :
-                    bamSwitch($obj->name),
-                "params" => Create($obj->params),
-                "returnType" => bamSwitch($obj->returnType),
-                "stmts" => handleArr($obj->stmts),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+                    bamSwitch($obj->name);
+            $obj->returnType = bamSwitch($obj->returnType);
+            $obj->stmts = bamSwitch($obj->stmts);
             break;
         case "Stmt_Const":
-            $new = Create([
-                "objName" => Create($type),
-                "consts" => handleArr($obj->consts),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+            $obj->consts = bamSwitch($obj->consts);
             break;
         case "Stmt_Declare":
-            $new = Create([
-                "objName" => Create($type),
-                "declares" => handleArr($obj->declares),
-                "stmts" => handleArr($obj->stmts),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+            $obj->declares = bamSwitch($obj->declares);
+            $obj->stmts = bamSwitch($obj->stmts);
             break;
         case "Stmt_DeclareDeclare":
-            $new = Create([
-                "objName" => Create($type),
-                "key" => is_string($obj->key) ?
+            $obj->key = is_string($obj->key) ?
                     Down(Offset($obj->attributes["startFilePos"] + 1,
                         $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1)) :
-                    bamSwitch($obj->key),
-                "value" => bamSwitch($obj->value),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+                    bamSwitch($obj->key);
+            $obj->value = bamSwitch($obj->value);
             break;
         case "Stmt_Else":
         case "Stmt_Finally":
-            $new = Create([
-                "objName" => Create($type),
-                "stmts" => handleArr($obj->stmts),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+            $obj->stmts = bamSwitch($obj->stmts);
             break;
         case "Stmt_For":
-            $new = Create([
-                "objName" => Create($type),
-                "init" => handleArr($obj->init),
-                "cond" => handleArr($obj->cond),
-                "loop" => handleArr($obj->loop),
-                "stmts" => handleArr($obj->stmts),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+            $obj->init = bamSwitch($obj->init);
+            $obj->cond = bamSwitch($obj->cond);
+            $obj->loop = bamSwitch($obj->loop);
+            $obj->stmts = bamSwitch($obj->stmts);
             break;
         case "Stmt_Foreach":
-            $new = Create([
-                "objName" => Create($type),
-                "expr" => bamSwitch($obj->expr),
-                "keyVar" => bamSwitch($obj->keyVar),
-                "byRef" => Create($obj->byRef),
-                "valueVar" => bamSwitch($obj->valueVar),
-                "stmts" => handleArr($obj->stmts)
-            ], $obj);
+            $obj->expr = bamSwitch($obj->expr);
+            $obj->keyVar = bamSwitch($obj->keyVar);
+            $obj->valueVar = bamSwitch($obj->valueVar);
+            $obj->stmts = bamSwitch($obj->stmts);
             break;
         case "Stmt_Function":
-            $new = Create([
-                "objName" => Create($type),
-                "byRef" => Create($obj->byRef),
-                "name" => is_string($obj->name) ?
+            $obj->name = is_string($obj->name) ?
                     Down(Offset($obj->attributes["startFilePos"] + 1,
                         $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1)) :
-                    bamSwitch($obj->name),
-                "params" => Create($obj->params),
-                "returnType" => bamSwitch($obj->returnType),
-                "stmts" => handleArr($obj->stmts),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+                    bamSwitch($obj->name);
+            $obj->params = bamSwitch($obj->params);
+            $obj->returnType = bamSwitch($obj->returnType);
+            $obj->stmts = bamSwitch($obj->stmts);
             break;
         case "Stmt_GroupUse":
-            $new = Create([
-                "objName" => Create($type),
-                "type" => Create($obj->type),
-                "prefix" => bamSwitch($obj->prefix),
-                "uses" => handleArr($obj->uses),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+            $obj->prefix = bamSwitch($obj->prefix);
+            $obj->uses = bamSwitch($obj->uses);
             break;
         case "Stmt_HaltCompiler":
-            $new = Create([
-                "objName" => Create($type),
-                "remaining" => Down(Offset($obj->attributes["startFilePos"] + 1,
-                    $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1)),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+            $obj->remaining = Down(Offset($obj->attributes["startFilePos"] + 1,
+                    $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1));
             break;
         case "Stmt_If":
-            $new = Create([
-                "objName" => Create($type),
-                "cond" => bamSwitch($obj->cond),
-                "stmts" => handleArr($obj->stmts),
-                "elseifs" => handleArr($obj->elseifs),
-                "else" => bamSwitch($obj->else),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+            $obj->cond = bamSwitch($obj->cond);
+            $obj->stmts = bamSwitch($obj->stmts);
+            $obj->elseifs = bamSwitch($obj->elseifs);
+            $obj->else = bamSwitch($obj->else);
             break;
         case "Stmt_Interface":
-            $new = Create([
-                "objName" => Create($type),
-                "name" => is_string($obj->name) ?
-                    Down(Offset($obj->attributes["startFilePos"] + 1,
-                        $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1)) :
-                    bamSwitch($obj->name),
-                "extends" => handleArr($obj->extends),
-                "stmts" => handleArr($obj->stmts),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+            $obj->name = is_string($obj->name) ?
+              Down(Offset($obj->attributes["startFilePos"] + 1,
+                  $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1)) :
+              bamSwitch($obj->name);
+            $obj->extends = bamSwitch($obj->extends);
+            $obj->stmts = bamSwitch($obj->stmts);
             break;
         case "Stmt_Namespace":
-            $new = Create([
-                "objName" => Create($type),
-                "name" => bamSwitch($obj->name),
-                "stmts" => handleArr($obj->stmts),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+            $obj->name = bamSwitch($obj->name);
+            $obj->stmts = bamSwitch($obj->stmts);
             break;
         case "Stmt_Property":
-            $new = Create([
-                "objName" => Create($type),
-                "flags" => Create($obj->flags),
-                "props" => handleArr($obj->props),
-                "type" => is_string($obj->type) ?
+            $obj->props = bamSwitch($obj->props);
+            $obj->type = is_string($obj->type) ?
                     Down(Offset($obj->attributes["startFilePos"] + 1,
                         $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1)) :
-                    bamSwitch($obj->type),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+                    bamSwitch($obj->type);
             break;
         case "Stmt_PropertyProperty":
-            $new = Create([
-                "objName" => Create($type),
-                "name" => is_string($obj->name) ?
+            $obj->name = is_string($obj->name) ?
                     Down(Offset($obj->attributes["startFilePos"] + 1,
                         $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1)) :
-                    bamSwitch($obj->name),
-                "default" => bamSwitch($obj->default),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+                    bamSwitch($obj->name);
+            $obj->default = bamSwitch($obj->default);
             break;
         case "Stmt_StaticVar":
-            $new = Create([
-                "objName" => Create($type),
-                "var" => bamSwitch($obj->var),
-                "default" => bamSwitch($obj->default),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+            $obj->var = bamSwitch($obj->var);
+            $obj->default = bamSwitch($obj->default);
             break;
         case "Stmt_Switch":
-            $new = Create([
-                "objName" => Create($type),
-                "cond" => bamSwitch($obj->cond),
-                "cases" => handleArr($obj->cases),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+            $obj->cond = bamSwitch($obj->cond);
+            $obj->cases = bamSwitch($obj->cases);
             break;
         case "Stmt_Trait":
-            $new = Create([
-                "objName" => Create($type),
-                "name" => is_string($obj->name) ?
+            $obj->name = is_string($obj->name) ?
                     Down(Offset($obj->attributes["startFilePos"] + 1,
                         $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1)) :
-                    bamSwitch($obj->name),
-                "stmts" => handleArr($obj->stmts),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+                    bamSwitch($obj->name);
+            $obj->stmts = bamSwitch($obj->stmts);
             break;
         case "Stmt_TraitUse":
-            $new = Create([
-                "objName" => Create($type),
-                "traits" => handleArr($obj->traits),
-                "adaptations" => handleArr($obj->adaptations),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+            $obj->traits = bamSwitch($obj->traits);
+            $obj->adaptations = bamSwitch($obj->adaptations);
             break;
         case "Stmt_TryCatch":
-            $new = Create([
-                "objName" => Create($type),
-                "stmts" => handleArr($obj->stmts),
-                "catches" => handleArr($obj->catches),
-                "finally" => bamSwitch($obj->finally),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+            $obj->stmts = bamSwitch($obj->stmts);
+            $obj->catches = bamSwitch($obj->catches);
+            $obj->finally = bamSwitch($obj->finally);
             break;
         case "Stmt_Use":
-            $new = Create([
-                "objName" => Create($type),
-                "type" => Create($obj->type),
-                "uses" => handleArr($obj->uses),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+            $obj->uses = bamSwitch($obj->uses);
             break;
         case "Stmt_UseUse":
-            $new = Create([
-                "objName" => Create($type),
-                "type" => Create($obj->type),
-                "name" => bamSwitch($obj->name),
-                "alias" => is_string($obj->alias) ?
+            $obj->name = bamSwitch($obj->name);
+            $obj->alias = is_string($obj->alias) ?
                     Down(Offset($obj->attributes["startFilePos"] + 1,
                         $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1)) :
-                    bamSwitch($obj->alias),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+                    bamSwitch($obj->alias);
             break;
         case "Stmt_TraitUseAdaptation_Alias":
-            $new = Create([
-                "objName" => Create($type),
-                "trait" => bamSwitch($obj->trait),
-                "method" => is_string($obj->method) ?
+            $obj->trait = bamSwitch($obj->trait);
+            $obj->method = is_string($obj->method) ?
                     Down(Offset($obj->attributes["startFilePos"] + 1,
                         $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1)) :
-                    bamSwitch($obj->method),
-                "newModifier" => Create($obj->newModifier),
-                "newName" => is_string($obj->newName) ?
+                    bamSwitch($obj->method);
+            $obj->newName = is_string($obj->newName) ?
                     Down(Offset($obj->attributes["startFilePos"] + 1,
                         $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1)) :
-                    bamSwitch($obj->newName),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+                    bamSwitch($obj->newName);
             break;
         case "Stmt_TraitUseAdaptation_Precedence":
-            $new = Create([
-                "objName" => Create($type),
-                "trait" => bamSwitch($obj->trait),
-                "method" => is_string($obj->method) ?
+            $obj->trait = bamSwitch($obj->trait);
+            $obj->method = is_string($obj->method) ?
                     Down(Offset($obj->attributes["startFilePos"] + 1,
                         $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1)) :
-                    bamSwitch($obj->method),
-                "insteadOf" => handleArr($obj->insteadOf),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+                    bamSwitch($obj->method);
+            $obj->insteadOf = bamSwitch($obj->insteadOf);
             break;
         case "Arg":
-            $new = Create([
-                "objName" => Create($type),
-                "value" => bamSwitch($obj->value),
-                "byRef" => Create($obj->byRef),
-                "unpack" => Create($obj->unpack),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+            $obj->value = bamSwitch($obj->value);
             break;
         case "Const":
-            $new = Create([
-                "objName" => Create($type),
-                "name" => is_string($obj->name) ?
+            $obj->name = is_string($obj->name) ?
                     Down(Offset($obj->attributes["startFilePos"] + 1,
                         $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1)) :
-                    bamSwitch($obj->name),
-                "value" => bamSwitch($obj->value),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+                    bamSwitch($obj->name);
+            $obj->value = bamSwitch($obj->value);
             break;
         case "Identifier":
-            $new = Create([
-                "objName" => Create($type),
-                "name" => Down(Offset($obj->attributes["startFilePos"],
-                    $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] + 1)),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+            $obj->name = Down(Offset($obj->attributes["startFilePos"],
+                    $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] + 1));
             break;
         case "NullableType":
-            $new = Create([
-                "objName" => Create($type),
-                "type" => is_string($obj->type) ?
+            $obj->type = is_string($obj->type) ?
                     Down(Offset($obj->attributes["startFilePos"] + 1,
                         $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1)) :
-                    bamSwitch($obj->type),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+                    bamSwitch($obj->type);
             break;
         case "Param":
-            $new = Create([
-                "objName" => Create($type),
-                "type" => is_string($obj->type) ?
-                    Down(Offset($obj->attributes["startFilePos"] + 1,
-                        $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1)) :
-                    bamSwitch($obj->type),
-                "byRef" => Create($obj->byRef),
-                "variadic" => Create($obj->variadic),
-                "var" => bamSwitch($obj->var),
-                "default" => bamSwitch($obj->var),
-                "flags" => handleArr($obj->flags),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+        
+            $obj->type = is_string($obj->type) ?
+                Down(Offset($obj->attributes["startFilePos"] + 1,
+                    $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1)) :
+                bamSwitch($obj->type);
+            $obj->var = bamSwitch($obj->var);
+            $obj->default = bamSwitch($obj->default);
+            $obj->flags = bamSwitch($obj->flags);
             break;
         case "UnionType":
-            $new = Create([
-                "objName" => Create($type),
-                "types" => handleArr($obj->types),
-                "attributes" => Create($obj->attributes)
-            ], $obj);
+            $obj->types = bamSwitch($obj->types);
             break;
         default:
             if (substr($type, 0, 13) == "Expr_AssignOp") {
-                $new = Create([
-                    "objName" => Create($type),
-                    "var" => bamSwitch($obj->var),
-                    "expr" => bamSwitch($obj->expr),
-                    "attributes" => Create($obj->attributes)
-                ], $obj);
+                $obj->var = bamSwitch($obj->var);
+                $obj->expr = bamSwitch($obj->expr);
             } else if (substr($type, 0, 13) == "Expr_BinaryOp") {
-                $new = Create([
-                    "objName" => Create($type),
-                    "left" => bamSwitch($obj->left),
-                    "right" => bamSwitch($obj->right),
-                    "attributes" => Create($obj->attributes)
-                ], $obj);
+                $obj->left = bamSwitch($obj->left);
+                $obj->right = bamSwitch($obj->right);
             } else if (substr($type, 0, 13) == "Expr_Cast") {
-                $new = Create([
-                    "objName" => Create($type),
-                    "expr" => bamSwitch($obj->expr),
-                    "attributes" => Create($obj->attributes)
-                ], $obj);
+                $obj->expr = bamSwitch($obj->expr);
             } else if (substr($type, 0, 4) == "Name") { //unsure on parts
-                $new = Create([
-                    "objName" => Create($type),
-                    "parts" => is_string($obj->parts) ? Down(Offset($obj->attributes["startFilePos"] + 1,
-                        $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1)) :
-                        (is_array($obj->parts) ? handleArr($obj->parts) : bamSwitch($obj->parts)),
-                    "attributes" => Create($obj->attributes)
-                ], $obj);
+                $obj->parts = is_string($obj->parts) ? Down(Offset($obj->attributes["startFilePos"] + 1,
+                  $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1)) :
+                  (is_array($obj->parts) ? handleArr($obj->parts) : bamSwitch($obj->parts));
             } else if (substr($type, 0, 17) == "Scalar_MagicConst") {
-                $new = Create([
-                    "objName" => Create($type),
-                    "attributes" => Create($obj->attributes)
-                ], $obj);
+              // don't do anything
             }
             else{
-                $new = Create($obj);
             }
     }
-    return $new;
+    return $obj;
 }
 
 
