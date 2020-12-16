@@ -47,6 +47,7 @@ use \bam\transform\{
 function stringEditBackwardsFun($hasQuotes, $isHtml = false) {
   return function($editAction, $sourceString, $string) use ($hasQuotes, $isHtml) {
       if(\bam\isIdentity($editAction)) return $editAction;
+      //\bam\doPrint("stringEditBackwardsFun", $hasQuotes, $isHtml, $editAction, $sourceString, $string);
       $quoteType = $hasQuotes ? $sourceString[0] : "";
       // Let's 1) find the indices where characters were contracted:
       //  
@@ -142,7 +143,9 @@ function stringEditBackwardsFun($hasQuotes, $isHtml = false) {
         }
         return $edit;
       });
-      $finalEdit = Keep($innerStringStart, $editActionOnOriginal);
+      $innerStringEnd = $innerStringStart + $innerStringLength;
+      $finalEdit = Replace($innerStringEnd, outLength($editActionOnOriginal, $innerStringEnd),
+        Keep($innerStringStart, $editActionOnOriginal));
       //echo "Result is ",uneval($finalEdit, ""),"\n";
       if($isHtml) {
         //echo "Test for injections\n";
@@ -188,6 +191,7 @@ function stringEditBackwardsFun($hasQuotes, $isHtml = false) {
           //echo "Final source is '$finalSource'\n";
         }
       }
+      //\bam\doPrint("stringEditBackwardsFun=", $finalEdit);
       return $finalEdit;
     };
 }
@@ -293,8 +297,9 @@ function parse($code) {
         }*/
     } catch (PhpParser\Error $error) {
         $message = formatErrorMessage($error, $code, NULL /*$attributes['with-column-info']*/);
-        fwrite(STDERR, $message . "\n");
-        exit(1);
+        echo $message;
+        //fwrite(STDERR, $message . "\n");
+        //exit(1);
     }
 }
 
@@ -387,7 +392,6 @@ function bamSwitch(&$obj) { //should i go through arrays and bam items, some thi
                     );
             break;
         case "Scalar_String":
-            $l = NULL;
             $l = Lens(
               function($sourceString) use ($obj) {
                 //echo "sourceString:$sourceString\n";
