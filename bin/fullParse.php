@@ -373,10 +373,15 @@ function bamSwitch(&$obj) { //should i go through arrays and bam items, some thi
         case "Expr_Variable":
         case "Stmt_Goto":
         case "Stmt_Label":
-            $obj->name = is_string($obj->name) ?
-                    Down(Offset($obj->attributes["startFilePos"] + 1,
-                        $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"])) :
-                    bamSwitch($obj->name);
+            if(is_string($obj->name)) {
+              // Here there is a bug. The end is correct but not always start
+              $end = $obj->attributes["endFilePos"] + 1;
+              $length = strlen($obj->name);
+              $start = $end - $length;
+              $obj->name = Down(Offset($start, $length));
+            } else {
+              $obj->name = bamSwitch($obj->name);
+            }
             break;
         case "Scalar_LNumber":
         case "Scalar_DNumber":
