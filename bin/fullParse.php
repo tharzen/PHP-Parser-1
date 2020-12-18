@@ -385,16 +385,18 @@ function bamSwitch(&$obj) { //should i go through arrays and bam items, some thi
             break;
         case "Scalar_LNumber":
         case "Scalar_DNumber":
-            $obj->value = Custom(Down(Offset($obj->attributes["startFilePos"],
-                    $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] + 1)),
-                    function ($x) {return intval($x);},
+            $obj->originalValue = $obj->value;
+            $obj->value = Down(Interval($obj->attributes["startFilePos"],
+                    $obj->attributes["endFilePos"] + 1),
+                      Custom(Reuse(),
+                    function ($x) use ($obj) {return $obj->originalValue;},
                     function ($edit, $oldInput, $oldOutput) {
                         $newNum = $edit->model;
                         // TODO to handle the strings starting 0x and with 0
                         return Create(strval($newNum));
                     },
                     "Number parse"
-                    );
+                    ));
             break;
         case "Scalar_String":
             $l = Lens(
