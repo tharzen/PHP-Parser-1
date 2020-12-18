@@ -384,20 +384,58 @@ function bamSwitch(&$obj) { //should i go through arrays and bam items, some thi
             }
             break;
         case "Scalar_LNumber":
+            $obj->originalValue = $obj->value;
+            $obj->value = Down(Interval($obj->attributes["startFilePos"],
+                    $obj->attributes["endFilePos"] + 1),
+                      Custom(Reuse(),
+                    function ($x) use ($obj) {return $obj->originalValue;},
+                    function ($edit, $sourceString, $number) {
+                        if(isConst($edit)) {
+                          $newValue = valueIfConst($edit);
+                          $newValueStr = strval($newValue);
+                          if(gettype($newValue) == "integer") {
+                            if($sourceString[0] == "0" && strlen($sourceString) >= 2) {
+                              if($sourceString[1] == "x") {
+                                $newValueStr = "0x".base_convert($newValueStr, 10, 16);
+                              } else if($sourceString[1] == "b") { // binary
+                                $newValueStr = "0b".base_convert($newValueStr, 10, 2);
+                              } else { //base 8
+                                $newValueStr = "0".base_convert($newValueStr, 10, 8);
+                              }
+                            }
+                          }
+                          // Default: Let's unparse correctly according to the number's format.
+                          // return Create(strval($newValue));
+                          $result = Prepend(strlen($newValueStr), $newValueStr, Remove(strlen($sourceString)));
+//                          echo "Result is ", uneval($result) ,"\n";
+                          return $result;
+                        } else {
+                          return Reuse();
+                        }
+                    },
+                    "Number parse"
+                    ));
+            break;
         case "Scalar_DNumber":
             $obj->originalValue = $obj->value;
             $obj->value = Down(Interval($obj->attributes["startFilePos"],
                     $obj->attributes["endFilePos"] + 1),
                       Custom(Reuse(),
                     function ($x) use ($obj) {return $obj->originalValue;},
-                    function ($edit, $oldInput, $oldOutput) {
-                        $newNum = $edit->model;
-                        // TODO to handle the strings starting 0x and with 0
-                        return Create(strval($newNum));
+                    function ($edit, $sourceString, $number) {
+                        if(isConst($edit)) {
+                          $newValue = valueIfConst($edit);
+                          // Now let's unparse correctly according to the number's format.
+                          //return Create(strval($newValue));
+                          return Prepend(strlen(strval($newValue)), Remove(strlen($sourceString)));
+                        } else {
+                          return Reuse();
+                        }
                     },
                     "Number parse"
                     ));
             break;
+        
         case "Scalar_String":
             $l = Lens(
               function($sourceString) use ($obj) {
