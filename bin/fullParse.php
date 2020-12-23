@@ -144,8 +144,7 @@ function stringEditBackwardsFun($hasQuotes, $isHtml = false) {
         return $edit;
       });
       $innerStringEnd = $innerStringStart + $innerStringLength;
-      $finalEdit = Replace($innerStringEnd, outLength($editActionOnOriginal, $innerStringEnd),
-        Keep($innerStringStart, $editActionOnOriginal));
+      $finalEdit = Keep($innerStringStart, Replace($innerStringLength, outLength($editActionOnOriginal, $innerStringLength), $editActionOnOriginal));
       //echo "Result is ",uneval($finalEdit, ""),"\n";
       if($isHtml) {
         //echo "Test for injections\n";
