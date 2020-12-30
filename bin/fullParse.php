@@ -406,7 +406,7 @@ function bamSwitch(&$obj) { //should i go through arrays and bam items, some thi
                           // Default: Let's unparse correctly according to the number's format.
                           // return Create(strval($newValue));
                           $result = Prepend(strlen($newValueStr), $newValueStr, Remove(strlen($sourceString)));
-//                          echo "Result is ", uneval($result) ,"\n";
+                          //echo "Result is ", uneval($result) ,"\n";
                           return $result;
                         } else {
                           return Reuse();
@@ -426,7 +426,8 @@ function bamSwitch(&$obj) { //should i go through arrays and bam items, some thi
                           $newValue = valueIfConst($edit);
                           // Now let's unparse correctly according to the number's format.
                           //return Create(strval($newValue));
-                          return Prepend(strlen(strval($newValue)), Remove(strlen($sourceString)));
+                          $newValueStr = strval($newValue);
+                          return Prepend(strlen($newValueStr), $newValueStr, Remove(strlen($sourceString)));
                         } else {
                           return Reuse();
                         }
