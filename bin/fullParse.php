@@ -384,36 +384,61 @@ function bamSwitch(&$obj) { //should i go through arrays and bam items, some thi
             break;
         case "Scalar_LNumber":
             $obj->originalValue = $obj->value;
-            $obj->value = Down(Interval($obj->attributes["startFilePos"],
-                    $obj->attributes["endFilePos"] + 1),
-                      Custom(Reuse(),
-                    function ($x) use ($obj) {return $obj->originalValue;},
-                    function ($edit, $sourceString, $number) {
+            $numberInterval = Down(Interval($obj->attributes["startFilePos"],
+                    $obj->attributes["endFilePos"] + 1));
+            $parentInterval = property_exists($obj, "parentAttributes") ? Down(Interval($obj->parentAttributes["startFilePos"], $obj->parentAttributes["endFilePos"] + 1)) : NULL;
+            $obj->value =
+                      Custom(Create(["number" => $numberInterval,
+                                     "parentString" => $parentInterval,
+                                     "parentType" => property_exists($obj, "parent") ? $obj->parent : NULL ]),
+                    function ($x) use ($obj) {
+                      return $obj->originalValue;
+                    },
+                    function ($edit, $oldInput, $number) {
+                        $sourceString = $oldInput["number"];
+                        $sourceStringParent = $oldInput["parentString"];
+                        $parentType = $oldInput["parentType"];
                         if(isConst($edit)) {
                           $newValue = valueIfConst($edit);
-                          $newValueStr = strval($newValue);
+                          $sign = $newValue > 0 ? 1 : -1;
+                          $newValueAbs = $newValue * $sign;
+                          $newValueAbsStr = strval($newValueAbs);
                           if(gettype($newValue) == "integer") {
                             if($sourceString[0] == "0" && strlen($sourceString) >= 2) {
                               if($sourceString[1] == "x") {
-                                $newValueStr = "0x".base_convert($newValueStr, 10, 16);
+                                $newValueAbsStr = "0x".base_convert($newValueAbsStr, 10, 16);
                               } else if($sourceString[1] == "b") { // binary
-                                $newValueStr = "0b".base_convert($newValueStr, 10, 2);
+                                $newValueAbsStr = "0b".base_convert($newValueAbsStr, 10, 2);
                               } else { //base 8
-                                $newValueStr = "0".base_convert($newValueStr, 10, 8);
+                                $newValueAbsStr = "0".base_convert($newValueAbsStr, 10, 8);
                               }
                             }
                           }
+                          $signStr = $sign > 0 ? "" : "-";
                           // Default: Let's unparse correctly according to the number's format.
                           // return Create(strval($newValue));
-                          $result = Prepend(strlen($newValueStr), $newValueStr, Remove(strlen($sourceString)));
-                          //echo "Result is ", uneval($result) ,"\n";
+                          if($parentType === "Expr_UnaryMinus" && $signStr === "-") {
+                            // Remove all the minuses.
+                            $result = Reuse([
+                              "parentString" => Prepend(strlen($newValueAbsStr), $newValueAbsStr, Remove(strlen($sourceStringParent)))
+                            ]);
+                          } else {
+                            $newValueStr = $signStr.$newValueAbsStr;
+                            if($parentType !== NULL && $sign = "-") {
+                              // Add parentheses
+                              $newValueStr = "(".$newValueStr.")";
+                            }
+                            $result = Reuse([
+                              "number" => Prepend(strlen($newValueStr), $newValueStr, Remove(strlen($sourceString)))
+                            ]);
+                          }
                           return $result;
                         } else {
                           return Reuse();
                         }
                     },
                     "Number parse"
-                    ));
+                    );
             break;
         case "Scalar_DNumber":
             $obj->originalValue = $obj->value;
@@ -506,9 +531,14 @@ function bamSwitch(&$obj) { //should i go through arrays and bam items, some thi
         case "Expr_Eval":
         case "Expr_Exit":
         case "Expr_Print":
-        case "Expr_UnaryMinus":
         case "Expr_UnaryPlus":
+        case "Expr_UnaryMinus":
         case "Expr_YieldFrom":
+            // To deal with UnaryMinus...
+            if($obj->expr !== NULL) {
+              $obj->expr->parent = $type;
+              $obj->expr->parentAttributes = $obj->attributes;
+            }
             $obj->expr = bamSwitch($obj->expr);
             break;
         case "Expr_ClassConstFetch":
