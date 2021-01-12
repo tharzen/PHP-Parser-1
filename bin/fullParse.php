@@ -448,20 +448,12 @@ function bamSwitch(&$obj) { //should i go through arrays and bam items, some thi
             break;
         
         case "Scalar_String":
-            $l = Lens(
-              function($sourceString) use ($obj) {
-                //echo "sourceString:$sourceString\n";
-                return $obj->originalValue;
-              },
-              stringEditBackwardsFun(/*hasQuotes*/true),
-              "Source to string" 
-            );
             // We replace the value by the provided edit action
             $obj->originalValue = $obj->value;
             $obj->value =
                 Down(Interval($obj->attributes["startFilePos"],
                     $obj->attributes["endFilePos"] + 1),
-                Custom(Reuse(), $l));
+                Custom_Scalar_String([Reuse(), $obj->originalValue]));
             break;
         case "Scalar_EncapsedStringPart":
             $obj->originalValue = $obj->value;
@@ -939,23 +931,40 @@ function parseArgs($args) {
     return [$operations, $files, $attributes];
 }
 
+// Combinator to apply the provided backPropagate function on the first element of the array.
+function onFirst($function) {
+  return function($outEdit, $input, $output) use ($function) {
+    list($first, $second) = $input;
+    $result = Reuse([0 => $function($outEdit, $first, $output)]);
+    return $result;
+  };
+}
 function Custom_NumberParse($subEdit) {
   return Custom($subEdit,
     function ($sourceStringAndOriginal) {
-       list($sourceString, $original) = $sourceStringAndOriginal;
-       return $original;
+       return $sourceStringAndOriginal[1];
     },
-    function ($edit, $sourceStringAndOriginal, $number) {
-        list($sourceString, $original) = $sourceStringAndOriginal;
+    onFirst(function ($edit, $sourceString, $number) {
         if(isConst($edit)) {
           $newValue = valueIfConst($edit);
           // Now let's unparse correctly according to the number's format.
           //return Create(strval($newValue));
           $newValueStr = strval($newValue);
-          return Reuse([0 => Prepend(strlen($newValueStr), $newValueStr, Remove(strlen($sourceString)))]);
+          return Prepend(strlen($newValueStr), $newValueStr, Remove(strlen($sourceString)));
         } else {
           return Reuse();
         }
-    },
+    }),
     "Custom_NumberParse");
+}
+function Custom_Scalar_String($sourceStringOriginalEdit) {
+  return Custom(
+    $sourceStringOriginalEdit,
+    function($sourceStringOriginal) {
+      //echo "sourceString:$sourceString\n";
+      return $sourceStringOriginal[1];
+    },
+    onFirst(stringEditBackwardsFun(/*hasQuotes*/true)),
+    "Custom_Scalar_String" 
+    );
 }
