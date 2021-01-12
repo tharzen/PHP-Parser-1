@@ -424,7 +424,7 @@ function bamSwitch(&$obj) { //should i go through arrays and bam items, some thi
                             ]);
                           } else {
                             $newValueStr = $signStr.$newValueAbsStr;
-                            if($parentType !== NULL && $sign = "-") {
+                            if($parentType !== NULL && $signStr === "-") {
                               // Add parentheses
                               $newValueStr = "(".$newValueStr.")";
                             }
