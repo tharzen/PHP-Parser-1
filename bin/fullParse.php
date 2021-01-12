@@ -444,21 +444,7 @@ function bamSwitch(&$obj) { //should i go through arrays and bam items, some thi
             $obj->originalValue = $obj->value;
             $obj->value = Down(Interval($obj->attributes["startFilePos"],
                     $obj->attributes["endFilePos"] + 1),
-                      Custom(Reuse(),
-                    function ($x) use ($obj) {return $obj->originalValue;},
-                    function ($edit, $sourceString, $number) {
-                        if(isConst($edit)) {
-                          $newValue = valueIfConst($edit);
-                          // Now let's unparse correctly according to the number's format.
-                          //return Create(strval($newValue));
-                          $newValueStr = strval($newValue);
-                          return Prepend(strlen($newValueStr), $newValueStr, Remove(strlen($sourceString)));
-                        } else {
-                          return Reuse();
-                        }
-                    },
-                    "Number parse"
-                    ));
+                      Custom_NumberParse([Reuse(), $obj->originalValue]));
             break;
         
         case "Scalar_String":
@@ -951,4 +937,25 @@ function parseArgs($args) {
     }
 
     return [$operations, $files, $attributes];
+}
+
+function Custom_NumberParse($subEdit) {
+  return Custom($subEdit,
+    function ($sourceStringAndOriginal) {
+       list($sourceString, $original) = $sourceStringAndOriginal;
+       return $original;
+    },
+    function ($edit, $sourceStringAndOriginal, $number) {
+        list($sourceString, $original) = $sourceStringAndOriginal;
+        if(isConst($edit)) {
+          $newValue = valueIfConst($edit);
+          // Now let's unparse correctly according to the number's format.
+          //return Create(strval($newValue));
+          $newValueStr = strval($newValue);
+          return Reuse([0 => Prepend(strlen($newValueStr), $newValueStr, Remove(strlen($sourceString)))]);
+        } else {
+          return Reuse();
+        }
+    },
+    "Custom_NumberParse");
 }
