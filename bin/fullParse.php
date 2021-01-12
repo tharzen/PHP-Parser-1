@@ -387,64 +387,22 @@ function bamSwitch(&$obj) { //should i go through arrays and bam items, some thi
             $numberInterval = Down(Interval($obj->attributes["startFilePos"],
                     $obj->attributes["endFilePos"] + 1));
             $parentInterval = property_exists($obj, "parentAttributes") ? Down(Interval($obj->parentAttributes["startFilePos"], $obj->parentAttributes["endFilePos"] + 1)) : NULL;
-            $obj->value =
-                      Custom(Create(["number" => $numberInterval,
-                                     "parentString" => $parentInterval,
-                                     "parentType" => property_exists($obj, "parent") ? $obj->parent : NULL ]),
-                    function ($x) use ($obj) {
-                      return $obj->originalValue;
-                    },
-                    function ($edit, $oldInput, $number) {
-                        $sourceString = $oldInput["number"];
-                        $sourceStringParent = $oldInput["parentString"];
-                        $parentType = $oldInput["parentType"];
-                        if(isConst($edit)) {
-                          $newValue = valueIfConst($edit);
-                          $sign = $newValue > 0 ? 1 : -1;
-                          $newValueAbs = $newValue * $sign;
-                          $newValueAbsStr = strval($newValueAbs);
-                          if(gettype($newValue) == "integer") {
-                            if($sourceString[0] == "0" && strlen($sourceString) >= 2) {
-                              if($sourceString[1] == "x") {
-                                $newValueAbsStr = "0x".base_convert($newValueAbsStr, 10, 16);
-                              } else if($sourceString[1] == "b") { // binary
-                                $newValueAbsStr = "0b".base_convert($newValueAbsStr, 10, 2);
-                              } else { //base 8
-                                $newValueAbsStr = "0".base_convert($newValueAbsStr, 10, 8);
-                              }
-                            }
-                          }
-                          $signStr = $sign > 0 ? "" : "-";
-                          // Default: Let's unparse correctly according to the number's format.
-                          // return Create(strval($newValue));
-                          if($parentType === "Expr_UnaryMinus" && $signStr === "-") {
-                            // Remove all the minuses.
-                            $result = Reuse([
-                              "parentString" => Prepend(strlen($newValueAbsStr), $newValueAbsStr, Remove(strlen($sourceStringParent)))
-                            ]);
-                          } else {
-                            $newValueStr = $signStr.$newValueAbsStr;
-                            if($parentType !== NULL && $signStr === "-") {
-                              // Add parentheses
-                              $newValueStr = "(".$newValueStr.")";
-                            }
-                            $result = Reuse([
-                              "number" => Prepend(strlen($newValueStr), $newValueStr, Remove(strlen($sourceString)))
-                            ]);
-                          }
-                          return $result;
-                        } else {
-                          return Reuse();
-                        }
-                    },
-                    "Number parse"
-                    );
+            $obj->value = Custom_ScalarLNumber([
+              "number" => $numberInterval,
+             "originalValue" => $obj->originalValue,
+             "parentString" => $parentInterval,
+             "parentType" => property_exists($obj, "parent") ? $obj->parent : NULL ]);
             break;
         case "Scalar_DNumber":
             $obj->originalValue = $obj->value;
-            $obj->value = Down(Interval($obj->attributes["startFilePos"],
-                    $obj->attributes["endFilePos"] + 1),
-                      Custom_NumberParse([Reuse(), $obj->originalValue]));
+            $numberInterval = Down(Interval($obj->attributes["startFilePos"],
+                    $obj->attributes["endFilePos"] + 1));
+            $parentInterval = property_exists($obj, "parentAttributes") ? Down(Interval($obj->parentAttributes["startFilePos"], $obj->parentAttributes["endFilePos"] + 1)) : NULL;
+            $obj->value = Custom_Scalar_DNumber([
+              "number" => $numberInterval,
+              "originalValue" => $obj->originalValue,
+              "parentString" => $parentInterval,
+              "parentType" => property_exists($obj, "parent") ? $obj->parent : NULL ]);
             break;
         
         case "Scalar_String":
@@ -458,26 +416,15 @@ function bamSwitch(&$obj) { //should i go through arrays and bam items, some thi
         case "Scalar_EncapsedStringPart":
             $obj->originalValue = $obj->value;
             $obj->value = Down(Offset($obj->attributes["startFilePos"],
-                    $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] + 1), Custom(Reuse(),
-                    function($sourceString) use ($obj) {
-                      //echo "sourceString:$sourceString\n";
-                      return $obj->originalValue;
-                    },
-                    stringEditBackwardsFun(/*hasQuotes*/false),
-                    "Encapsed source to string"));
+                    $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] + 1), 
+                      Custom_Scalar_EncapsedStringPart([Reuse(), $obj->originalValue]));
             break;
         case "Scalar_MagicConst_File":
             break;
         case "Stmt_InlineHTML":
             $obj->originalValue = $obj->value;
             $obj->value = Down(Offset($obj->attributes["startFilePos"],
-                    $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] + 1), Custom(Reuse(),
-                    function($sourceString) use ($obj) {
-                      //echo "sourceString:$sourceString\n";
-                      return $obj->originalValue;
-                    },
-                    stringEditBackwardsFun(/*hasQuotes*/false, /*isHtml*/true),
-                    "inline HTML String process"));
+                    $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] + 1), Custom_Stmt_InlineHTML([Reuse(), $obj->originalValue]));
             break;
         case "Stmt_Echo":
             $obj->exprs = bamSwitch($obj->exprs);
@@ -939,23 +886,95 @@ function onFirst($function) {
     return $result;
   };
 }
-function Custom_NumberParse($subEdit) {
-  return Custom($subEdit,
-    function ($sourceStringAndOriginal) {
-       return $sourceStringAndOriginal[1];
+
+function Custom_ScalarLNumber($inEdit) {
+  return Custom($inEdit,
+    function ($x) {
+      return $x["originalValue"];
     },
-    onFirst(function ($edit, $sourceString, $number) {
+    function ($edit, $oldInput, $number) {
+        $sourceString = $oldInput["number"];
+        $sourceStringParent = $oldInput["parentString"];
+        $parentType = $oldInput["parentType"];
         if(isConst($edit)) {
           $newValue = valueIfConst($edit);
-          // Now let's unparse correctly according to the number's format.
-          //return Create(strval($newValue));
-          $newValueStr = strval($newValue);
-          return Prepend(strlen($newValueStr), $newValueStr, Remove(strlen($sourceString)));
+          $sign = $newValue > 0 ? 1 : -1;
+          $newValueAbs = $newValue * $sign;
+          $newValueAbsStr = strval($newValueAbs);
+          if(gettype($newValue) == "integer") {
+            if($sourceString[0] == "0" && strlen($sourceString) >= 2) {
+              if($sourceString[1] == "x") {
+                $newValueAbsStr = "0x".base_convert($newValueAbsStr, 10, 16);
+              } else if($sourceString[1] == "b") { // binary
+                $newValueAbsStr = "0b".base_convert($newValueAbsStr, 10, 2);
+              } else { //base 8
+                $newValueAbsStr = "0".base_convert($newValueAbsStr, 10, 8);
+              }
+            }
+          }
+          $signStr = $sign > 0 ? "" : "-";
+          // Default: Let's unparse correctly according to the number's format.
+          // return Create(strval($newValue));
+          if($parentType === "Expr_UnaryMinus" && $signStr === "-") {
+            // Remove all the minuses.
+            $result = Reuse([
+              "parentString" => Prepend(strlen($newValueAbsStr), $newValueAbsStr, Remove(strlen($sourceStringParent)))
+            ]);
+          } else {
+            $newValueStr = $signStr.$newValueAbsStr;
+            if($parentType !== NULL && $signStr === "-") {
+              // Add parentheses
+              $newValueStr = "(".$newValueStr.")";
+            }
+            $result = Reuse([
+              "number" => Prepend(strlen($newValueStr), $newValueStr, Remove(strlen($sourceString)))
+            ]);
+          }
+          return $result;
         } else {
           return Reuse();
         }
-    }),
-    "Custom_NumberParse");
+    },
+    "Custom_ScalarLNumber"
+  );
+}
+function Custom_Scalar_DNumber($subEdit) {
+  return Custom($subEdit,
+    function ($x) {
+      return $x["originalValue"];
+    },
+    function ($edit, $oldInput, $number) {
+        $sourceString = $oldInput["number"];
+        $sourceStringParent = $oldInput["parentString"];
+        $parentType = $oldInput["parentType"];
+        if(isConst($edit)) {
+          $newValue = valueIfConst($edit);
+          $sign = $newValue > 0 ? 1 : -1;
+          $newValueAbs = $newValue * $sign;
+          $newValueAbsStr = strval($newValueAbs);
+          $signStr = $sign > 0 ? "" : "-";
+          if($parentType === "Expr_UnaryMinus" && $signStr === "-") {
+            // Remove all the minuses.
+            $result = Reuse([
+              "parentString" => Prepend(strlen($newValueAbsStr), $newValueAbsStr, Remove(strlen($sourceStringParent)))
+            ]);
+          } else {
+            $newValueStr = $signStr.$newValueAbsStr;
+            if($parentType !== NULL && $signStr === "-") {
+              // Add parentheses
+              $newValueStr = "(".$newValueStr.")";
+            }
+            $result = Reuse([
+              "number" => Prepend(strlen($newValueStr), $newValueStr, Remove(strlen($sourceString)))
+            ]);
+          }
+          return $result;
+        } else {
+          return Reuse();
+        }
+    },
+    "Custom_Scalar_DNumber"
+  );
 }
 function Custom_Scalar_String($sourceStringOriginalEdit) {
   return Custom(
@@ -967,4 +986,21 @@ function Custom_Scalar_String($sourceStringOriginalEdit) {
     onFirst(stringEditBackwardsFun(/*hasQuotes*/true)),
     "Custom_Scalar_String" 
     );
+}
+function Custom_Scalar_EncapsedStringPart($inEdit) {
+  return Custom($inEdit,
+  function($sourceStringOriginal) {
+    return $sourceStringOriginal[1];
+  },
+  onFirst(stringEditBackwardsFun(/*hasQuotes*/false)),
+  "Custom_Scalar_EncapsedStringPart");
+}
+function Custom_Stmt_InlineHTML($inEdit) {
+  return Custom($inEdit,
+    function($sourceStringOriginal) {
+      //echo "sourceString:$sourceString\n";
+      return $sourceStringOriginal[1];
+    },
+    onFirst(stringEditBackwardsFun(/*hasQuotes*/false, /*isHtml*/true)),
+    "Custom_Stmt_InlineHTML");
 }
