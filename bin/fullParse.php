@@ -935,7 +935,7 @@ function Custom_ScalarLNumber($inEdit) {
           return Reuse();
         }
     },
-    "Custom_ScalarLNumber"
+    "\\".__FUNCTION__
   );
 }
 function Custom_Scalar_DNumber($subEdit) {
@@ -973,7 +973,7 @@ function Custom_Scalar_DNumber($subEdit) {
           return Reuse();
         }
     },
-    "Custom_Scalar_DNumber"
+    "\\".__FUNCTION__
   );
 }
 function Custom_Scalar_String($sourceStringOriginalEdit) {
@@ -984,7 +984,7 @@ function Custom_Scalar_String($sourceStringOriginalEdit) {
       return $sourceStringOriginal["value"];
     },
     onSource(stringEditBackwardsFun(/*hasQuotes*/true)),
-    "Custom_Scalar_String" 
+    "\\".__FUNCTION__
     );
 }
 function Custom_Scalar_EncapsedStringPart($inEdit) {
@@ -993,7 +993,7 @@ function Custom_Scalar_EncapsedStringPart($inEdit) {
     return $sourceStringOriginal["value"];
   },
   onSource(stringEditBackwardsFun(/*hasQuotes*/false)),
-  "Custom_Scalar_EncapsedStringPart");
+  "\\".__FUNCTION__);
 }
 function Custom_Stmt_InlineHTML($inEdit) {
   return Custom($inEdit,
@@ -1002,5 +1002,5 @@ function Custom_Stmt_InlineHTML($inEdit) {
       return $sourceStringOriginal["value"];
     },
     onSource(stringEditBackwardsFun(/*hasQuotes*/false, /*isHtml*/true)),
-    "Custom_Stmt_InlineHTML");
+    "\\".__FUNCTION__);
 }
