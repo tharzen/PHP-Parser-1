@@ -411,20 +411,20 @@ function bamSwitch(&$obj) { //should i go through arrays and bam items, some thi
             $obj->value =
                 Down(Interval($obj->attributes["startFilePos"],
                     $obj->attributes["endFilePos"] + 1),
-                Custom_Scalar_String([Reuse(), $obj->originalValue]));
+                Custom_Scalar_String(["source" => Reuse(), "value" => $obj->originalValue]));
             break;
         case "Scalar_EncapsedStringPart":
             $obj->originalValue = $obj->value;
             $obj->value = Down(Offset($obj->attributes["startFilePos"],
                     $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] + 1), 
-                      Custom_Scalar_EncapsedStringPart([Reuse(), $obj->originalValue]));
+                      Custom_Scalar_EncapsedStringPart(["source" => Reuse(), "value" => $obj->originalValue]));
             break;
         case "Scalar_MagicConst_File":
             break;
         case "Stmt_InlineHTML":
             $obj->originalValue = $obj->value;
             $obj->value = Down(Offset($obj->attributes["startFilePos"],
-                    $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] + 1), Custom_Stmt_InlineHTML([Reuse(), $obj->originalValue]));
+                    $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] + 1), Custom_Stmt_InlineHTML(["source" => Reuse(), "value" => $obj->originalValue]));
             break;
         case "Stmt_Echo":
             $obj->exprs = bamSwitch($obj->exprs);
@@ -879,10 +879,10 @@ function parseArgs($args) {
 }
 
 // Combinator to apply the provided backPropagate function on the first element of the array.
-function onFirst($function) {
+function onSource($function) {
   return function($outEdit, $input, $output) use ($function) {
-    list($first, $second) = $input;
-    $result = Reuse([0 => $function($outEdit, $first, $output)]);
+    $first = $input["source"];
+    $result = Reuse(["source" => $function($outEdit, $first, $output)]);
     return $result;
   };
 }
@@ -981,26 +981,26 @@ function Custom_Scalar_String($sourceStringOriginalEdit) {
     $sourceStringOriginalEdit,
     function($sourceStringOriginal) {
       //echo "sourceString:$sourceString\n";
-      return $sourceStringOriginal[1];
+      return $sourceStringOriginal["value"];
     },
-    onFirst(stringEditBackwardsFun(/*hasQuotes*/true)),
+    onSource(stringEditBackwardsFun(/*hasQuotes*/true)),
     "Custom_Scalar_String" 
     );
 }
 function Custom_Scalar_EncapsedStringPart($inEdit) {
   return Custom($inEdit,
   function($sourceStringOriginal) {
-    return $sourceStringOriginal[1];
+    return $sourceStringOriginal["value"];
   },
-  onFirst(stringEditBackwardsFun(/*hasQuotes*/false)),
+  onSource(stringEditBackwardsFun(/*hasQuotes*/false)),
   "Custom_Scalar_EncapsedStringPart");
 }
 function Custom_Stmt_InlineHTML($inEdit) {
   return Custom($inEdit,
     function($sourceStringOriginal) {
       //echo "sourceString:$sourceString\n";
-      return $sourceStringOriginal[1];
+      return $sourceStringOriginal["value"];
     },
-    onFirst(stringEditBackwardsFun(/*hasQuotes*/false, /*isHtml*/true)),
+    onSource(stringEditBackwardsFun(/*hasQuotes*/false, /*isHtml*/true)),
     "Custom_Stmt_InlineHTML");
 }
