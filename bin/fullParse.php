@@ -173,7 +173,7 @@ function stringEditBackwardsFun($hasQuotes, $isHtml = false) {
         // Test for injections, and prevent them.
         $finalSource = apply($finalEdit, $sourceString);
         $tagPrefix = "";
-        while(strpos($finalSource, "\n".$tagPrefix.$endTag.";") !== false) {
+        while(strpos($finalSource, "\n".$tagPrefix.$endTag.";") !== false || strpos($finalSource, "\n".$tagPrefix.$endTag."\n") !== false || strpos($finalSource, "\n".$tagPrefix.$endTag."\r") !== false) {
           //echo "One injection found\n";
           // We need to change the EOT. We prefix it with
           $tagPrefix = "A".$tagPrefix;
