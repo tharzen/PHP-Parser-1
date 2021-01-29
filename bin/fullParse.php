@@ -113,36 +113,7 @@ function stringEditBackwardsFun($hasQuotes, $isHtml = false) {
         })));
       
       //echo "Calling Postmap on ",uneval($editAction, ""),"\n";
-      $editActionOnOriginal = postMap($editAction, function($edit, $inContext) use(&$escaped, &$convertConst) {
-        if(isConst($edit)) { // Works with Prepend and Append the same way.
-          $v = valueIfConst($edit);
-          $newV = $convertConst($v);
-          //echo "transforming ".uneval($v)," => ",uneval($newV)," (context is ".uneval($inContext).")\n";
-          return isEditAction($edit) ? Create($newV) : $newV;
-        } else if(isDown($edit)) {
-          // Need to offset the start and end positions since they operate on input.
-          list($deltaStart, $deltaLength) = computeDeltaOffset(Up($edit->keyOrOffset, $inContext), NULL, $escaped);
-          $finalEdit = SameDownAs($edit, Offset($edit->keyOrOffset->count + $deltaStart, PlusUndefined($edit->keyOrOffset->newLength, $deltaLength)), $edit->subAction);
-          //echo "transforming ".uneval($edit)," => ",uneval($finalEdit)," (context is ".uneval($inContext).")\n";
-          return $finalEdit;
-        } else if(isReplace($edit)) {
-          $inCount = $edit->replaceCount;
-          $outCount = $edit->count;
-          list($deltaStart, $deltaLength) = computeDeltaOffset($inContext, $inCount, $escaped);
-          $newFirst = Up(Interval($deltaStart), $edit->first);
-          $newSecond = Up(Interval($deltaStart), $edit->second);
-          $newReplaceInCount = $edit->replaceCount + $deltaLength;
-          $newInCount = $inContext !== NULL ? $inContext->keyOrOffset->newLength : NULL;
-          //echo "outLength(", uneval($newFirst), ", ", $newInCount, ")\n";
-          $newOutCount = outLength($newFirst, $newInCount);
-          //echo "newOutCount == $newOutCount\n";
-          if($newOutCount === NULL) $newOutCount = $outCount;
-          $finalEdit = Concat($newOutCount, $newFirst, $newSecond, $newReplaceInCount);
-          //echo "transforming ".uneval($edit)," => ",uneval($finalEdit)," (context is ".uneval($inContext).")\n";
-          return $finalEdit;
-        }
-        return $edit;
-      });
+      $editActionOnOriginal = \bam\transform\backPropagateStringEdit($editAction, $escaped, $convertConst);
       $innerStringEnd = $innerStringStart + $innerStringLength;
       $finalEdit = Keep($innerStringStart, Replace($innerStringLength, outLength($editActionOnOriginal, $innerStringLength), $editActionOnOriginal));
       //echo "Result is ",uneval($finalEdit, ""),"\n";
@@ -193,32 +164,6 @@ function stringEditBackwardsFun($hasQuotes, $isHtml = false) {
       //\bam\doPrint("stringEditBackwardsFun=", $finalEdit);
       return $finalEdit;
     };
-}
-
-// Source string    interpreted string
-// src\nStr\ning => src
-//                  str
-//                  ing
-// Given an $inContext NULL | Up(Interval($start, ....)) on the interpreted string
-// Given a $length on the interpreted string
-// Given $escaped an array of [position in source string, oldLength] of all the positions of characters that reduced to a single character
-// Computes [$deltaStart, $deltaLength] such that the interval Offset($start, $length) valid in interpreted string
-// is transformed to some valid Offset($start + $deltaStart, $length + $deltaLength) valid in source string.
-function computeDeltaOffset($inContext, $length, &$escaped) {
-  $inOffset = $inContext === NULL ? 0 : $inContext->keyOrOffset->count;
-  $deltaLength = 0;
-  $deltaStart = 0;
-  $length = MinUndefined($length, $inContext === NULL ? NULL : $inContext->keyOrOffset->newLength);
-  forEach($escaped as $key => list($position, $positionDeltaLength)) {
-    if($position - $deltaStart < $inOffset) {
-      $deltaStart += $positionDeltaLength;
-    } else {
-      if(LessThanUndefined($position - $deltaStart - $deltaLength, PlusUndefined($inOffset, $length))) {
-        $deltaLength += $positionDeltaLength;
-      }
-    }
-  }
-  return [$deltaStart, $deltaLength];
 }
 
 foreach ([__DIR__ . '/../../../autoload.php', __DIR__ . '/../vendor/autoload.php'] as $file) {
