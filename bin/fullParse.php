@@ -328,48 +328,41 @@ function bamSwitch(&$obj) { //should i go through arrays and bam items, some thi
             }
             break;
         case "Scalar_LNumber":
-            $obj->originalValue = $obj->value;
             $numberInterval = Down(Interval($obj->attributes["startFilePos"],
                     $obj->attributes["endFilePos"] + 1));
             $parentInterval = property_exists($obj, "parentAttributes") ? Down(Interval($obj->parentAttributes["startFilePos"], $obj->parentAttributes["endFilePos"] + 1)) : NULL;
             $obj->value = Custom_ScalarLNumber([
               "number" => $numberInterval,
-             "originalValue" => $obj->originalValue,
              "parentString" => $parentInterval,
              "parentType" => property_exists($obj, "parent") ? $obj->parent : NULL ]);
             break;
         case "Scalar_DNumber":
-            $obj->originalValue = $obj->value;
             $numberInterval = Down(Interval($obj->attributes["startFilePos"],
                     $obj->attributes["endFilePos"] + 1));
             $parentInterval = property_exists($obj, "parentAttributes") ? Down(Interval($obj->parentAttributes["startFilePos"], $obj->parentAttributes["endFilePos"] + 1)) : NULL;
             $obj->value = Custom_Scalar_DNumber([
               "number" => $numberInterval,
-              "originalValue" => $obj->originalValue,
               "parentString" => $parentInterval,
               "parentType" => property_exists($obj, "parent") ? $obj->parent : NULL ]);
             break;
         
         case "Scalar_String":
             // We replace the value by the provided edit action
-            $obj->originalValue = $obj->value;
             $obj->value =
                 Down(Interval($obj->attributes["startFilePos"],
                     $obj->attributes["endFilePos"] + 1),
-                Custom_Scalar_String(["source" => Reuse(), "value" => $obj->originalValue]));
+                Custom_Scalar_String(["source" => Reuse()]));
             break;
         case "Scalar_EncapsedStringPart":
-            $obj->originalValue = $obj->value;
             $obj->value = Down(Offset($obj->attributes["startFilePos"],
                     $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] + 1), 
-                      Custom_Scalar_EncapsedStringPart(["source" => Reuse(), "value" => $obj->originalValue]));
+                      Custom_Scalar_EncapsedStringPart(["source" => Reuse()]));
             break;
         case "Scalar_MagicConst_File":
             break;
         case "Stmt_InlineHTML":
-            $obj->originalValue = $obj->value;
             $obj->value = Down(Offset($obj->attributes["startFilePos"],
-                    $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] + 1), Custom_Stmt_InlineHTML(["source" => Reuse(), "value" => $obj->originalValue]));
+                    $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] + 1), Custom_Stmt_InlineHTML(["source" => Reuse()]));
             break;
         case "Stmt_Echo":
             $obj->exprs = bamSwitch($obj->exprs);
