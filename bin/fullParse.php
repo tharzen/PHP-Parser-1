@@ -823,7 +823,7 @@ function parseArgs($args) {
     return [$operations, $files, $attributes];
 }
 
-// Combinator to apply the provided backPropagate function on the first element of the array.
+// Combinator to apply the provided backPropagate function on the source element of the array.
 function onSource($function) {
   return function($outEdit, $input, $output) use ($function) {
     $first = $input["source"];
@@ -835,7 +835,7 @@ function onSource($function) {
 function Custom_ScalarLNumber($inEdit) {
   return Custom($inEdit,
     function ($x) {
-      return $x["originalValue"];
+      return getNumberFromString($x["number"]);
     },
     function ($edit, $oldInput, $number) {
         $sourceString = $oldInput["number"];
@@ -883,10 +883,24 @@ function Custom_ScalarLNumber($inEdit) {
     "\\".__FUNCTION__
   );
 }
+function getNumberFromString($str) {
+  $str = str_replace('_', '', $str);
+  if (stripos($str, '0b') === 0) {
+    $num = bindec($str);
+  } elseif (stripos($str, '0x') === 0) {
+    $num = hexdec($str);
+  } elseif (stripos($str, '0') === 0 && ctype_digit($str)) {
+    $num = octdec($str);
+  } else {
+    $num = +$str;
+  }
+  return $num;
+}
+
 function Custom_Scalar_DNumber($subEdit) {
   return Custom($subEdit,
     function ($x) {
-      return $x["originalValue"];
+      return getNumberFromString($x["number"]);
     },
     function ($edit, $oldInput, $number) {
         $sourceString = $oldInput["number"];
@@ -925,8 +939,21 @@ function Custom_Scalar_String($sourceStringOriginalEdit) {
   return Custom(
     $sourceStringOriginalEdit,
     function($sourceStringOriginal) {
-      //echo "sourceString:$sourceString\n";
-      return $sourceStringOriginal["value"];
+      $source = $sourceStringOriginal["source"];
+      $matches = [];
+      $regex = '/\A[bB]?<<<[ \t]*([\'"]?)([a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*)[\'"]?(?:\r\n|\n|\r)([\\s\\S]*?)(\r?\n\2\z)/';
+      if(preg_match($regex, $source, $matches)) {
+        $quote = $matches[1] === "'" ? "'" : '"';
+        $tag = $matches[2];
+        $content = $matches[3];
+        //echo "source before transformation: |||$source|||\n";
+        $source = $quote.preg_replace("/$quote/", "\\$quote", 
+        $quote === "'" ? preg_replace("/\\\\/", "\\\\\\\\",$content) : $content).$quote;
+        //print_r($matches);
+        //echo "source after transformation: |||$source|||\n";
+        //throw new \Exception("Deal with heredoc");
+      }
+      return PhpParser\Node\Scalar\String_::parse($source, version_compare(phpversion(), "7.0.0", ">="));
     },
     onSource(stringEditBackwardsFun(/*hasQuotes*/true)),
     "\\".__FUNCTION__
@@ -935,7 +962,7 @@ function Custom_Scalar_String($sourceStringOriginalEdit) {
 function Custom_Scalar_EncapsedStringPart($inEdit) {
   return Custom($inEdit,
   function($sourceStringOriginal) {
-    return $sourceStringOriginal["value"];
+    return PhpParser\Node\Scalar\String_::parseEscapeSequences($sourceStringOriginal["source"], NULL, version_compare(phpversion(), "7.0.0", ">="));
   },
   onSource(stringEditBackwardsFun(/*hasQuotes*/false)),
   "\\".__FUNCTION__);
@@ -943,8 +970,7 @@ function Custom_Scalar_EncapsedStringPart($inEdit) {
 function Custom_Stmt_InlineHTML($inEdit) {
   return Custom($inEdit,
     function($sourceStringOriginal) {
-      //echo "sourceString:$sourceString\n";
-      return $sourceStringOriginal["value"];
+      return $sourceStringOriginal["source"];
     },
     onSource(stringEditBackwardsFun(/*hasQuotes*/false, /*isHtml*/true)),
     "\\".__FUNCTION__);
