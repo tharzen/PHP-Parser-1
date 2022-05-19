@@ -435,13 +435,11 @@ function bamSwitch(&$obj) { //should i go through arrays and bam items, some thi
             $obj->stmts = bamSwitch($obj->stmts);
             break;
         case "Stmt_Function":
-            $obj->name = is_string($obj->name) ?
-                    Down(Offset($obj->attributes["startFilePos"] + 1,
-                        $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] - 1)) :
-                    bamSwitch($obj->name);
+            $obj->name = bamSwitch($obj->name);
             $obj->params = bamSwitch($obj->params);
             $obj->returnType = bamSwitch($obj->returnType);
             $obj->stmts = bamSwitch($obj->stmts);
+            $obj->source = Down(Offset($obj->attributes["startFilePos"], $obj->attributes["endFilePos"] - $obj->attributes["startFilePos"] + 1));
             break;
         case "Stmt_GroupUse":
             $obj->prefix = bamSwitch($obj->prefix);
