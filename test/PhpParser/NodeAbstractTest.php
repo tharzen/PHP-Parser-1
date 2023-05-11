@@ -6,11 +6,13 @@ class DummyNode extends NodeAbstract
 {
     public $subNode1;
     public $subNode2;
+    public $notSubNode;
 
-    public function __construct($subNode1, $subNode2, $attributes) {
+    public function __construct($subNode1, $subNode2, $notSubNode, $attributes) {
         parent::__construct($attributes);
         $this->subNode1 = $subNode1;
         $this->subNode2 = $subNode2;
+        $this->notSubNode = $notSubNode;
     }
 
     public function getSubNodeNames() : array {
@@ -40,8 +42,7 @@ class NodeAbstractTest extends \PHPUnit\Framework\TestCase
             ],
         ];
 
-        $node = new DummyNode('value1', 'value2', $attributes);
-        $node->notSubNode = 'value3';
+        $node = new DummyNode('value1', 'value2', 'value3', $attributes);
 
         return [
             [$attributes, $node],
@@ -90,7 +91,7 @@ class NodeAbstractTest extends \PHPUnit\Framework\TestCase
     }
 
     public function testSetDocComment() {
-        $node = new DummyNode(null, null, []);
+        $node = new DummyNode(null, null, null, []);
 
         // Add doc comment to node without comments
         $docComment = new Comment\Doc('/** doc */');
@@ -120,19 +121,19 @@ class NodeAbstractTest extends \PHPUnit\Framework\TestCase
     /**
      * @dataProvider provideNodes
      */
-    public function testChange(array $attributes, Node $node) {
+    public function testChange(array $attributes, DummyNode $node) {
         // direct modification
-        $node->subNode = 'newValue';
-        $this->assertSame('newValue', $node->subNode);
+        $node->subNode1 = 'newValue';
+        $this->assertSame('newValue', $node->subNode1);
 
         // indirect modification
-        $subNode =& $node->subNode;
+        $subNode =& $node->subNode1;
         $subNode = 'newNewValue';
-        $this->assertSame('newNewValue', $node->subNode);
+        $this->assertSame('newNewValue', $node->subNode1);
 
         // removal
-        unset($node->subNode);
-        $this->assertObjectNotHasAttribute('subNode', $node);
+        unset($node->subNode1);
+        $this->assertFalse(isset($node->subNode1));
     }
 
     /**
@@ -244,6 +245,7 @@ PHP;
                     "attributes": {
                         "startLine": 4,
                         "endLine": 4,
+                        "rawValue": "0",
                         "kind": 10
                     }
                 },
@@ -272,7 +274,8 @@ PHP;
                     "value": 1,
                     "attributes": {
                         "startLine": 4,
-                        "endLine": 4
+                        "endLine": 4,
+                        "rawValue": "1.0"
                     }
                 },
                 "flags": 0,
@@ -294,7 +297,8 @@ PHP;
                         "attributes": {
                             "startLine": 5,
                             "endLine": 5,
-                            "kind": 1
+                            "kind": 1,
+                            "rawValue": "'Foo'"
                         }
                     }
                 ],
@@ -305,6 +309,7 @@ PHP;
             }
         ],
         "attrGroups": [],
+        "namespacedName": null,
         "attributes": {
             "startLine": 4,
             "comments": [
@@ -334,6 +339,137 @@ PHP;
     }
 ]
 JSON;
+        $expected81 = <<<'JSON'
+[
+    {
+        "nodeType": "Stmt_Function",
+        "attributes": {
+            "startLine": 4,
+            "comments": [
+                {
+                    "nodeType": "Comment",
+                    "text": "\/\/ comment",
+                    "line": 2,
+                    "filePos": 6,
+                    "tokenPos": 1,
+                    "endLine": 2,
+                    "endFilePos": 15,
+                    "endTokenPos": 1
+                },
+                {
+                    "nodeType": "Comment_Doc",
+                    "text": "\/** doc comment *\/",
+                    "line": 3,
+                    "filePos": 17,
+                    "tokenPos": 3,
+                    "endLine": 3,
+                    "endFilePos": 34,
+                    "endTokenPos": 3
+                }
+            ],
+            "endLine": 6
+        },
+        "byRef": false,
+        "name": {
+            "nodeType": "Identifier",
+            "attributes": {
+                "startLine": 4,
+                "endLine": 4
+            },
+            "name": "functionName"
+        },
+        "params": [
+            {
+                "nodeType": "Param",
+                "attributes": {
+                    "startLine": 4,
+                    "endLine": 4
+                },
+                "type": null,
+                "byRef": true,
+                "variadic": false,
+                "var": {
+                    "nodeType": "Expr_Variable",
+                    "attributes": {
+                        "startLine": 4,
+                        "endLine": 4
+                    },
+                    "name": "a"
+                },
+                "default": {
+                    "nodeType": "Scalar_LNumber",
+                    "attributes": {
+                        "startLine": 4,
+                        "endLine": 4,
+                        "rawValue": "0",
+                        "kind": 10
+                    },
+                    "value": 0
+                },
+                "flags": 0,
+                "attrGroups": []
+            },
+            {
+                "nodeType": "Param",
+                "attributes": {
+                    "startLine": 4,
+                    "endLine": 4
+                },
+                "type": null,
+                "byRef": false,
+                "variadic": false,
+                "var": {
+                    "nodeType": "Expr_Variable",
+                    "attributes": {
+                        "startLine": 4,
+                        "endLine": 4
+                    },
+                    "name": "b"
+                },
+                "default": {
+                    "nodeType": "Scalar_DNumber",
+                    "attributes": {
+                        "startLine": 4,
+                        "endLine": 4,
+                        "rawValue": "1.0"
+                    },
+                    "value": 1
+                },
+                "flags": 0,
+                "attrGroups": []
+            }
+        ],
+        "returnType": null,
+        "stmts": [
+            {
+                "nodeType": "Stmt_Echo",
+                "attributes": {
+                    "startLine": 5,
+                    "endLine": 5
+                },
+                "exprs": [
+                    {
+                        "nodeType": "Scalar_String",
+                        "attributes": {
+                            "startLine": 5,
+                            "endLine": 5,
+                            "kind": 1,
+                            "rawValue": "'Foo'"
+                        },
+                        "value": "Foo"
+                    }
+                ]
+            }
+        ],
+        "attrGroups": [],
+        "namespacedName": null
+    }
+]
+JSON;
+
+        if (version_compare(PHP_VERSION, '8.1', '>=')) {
+            $expected = $expected81;
+        }
 
         $parser = new Parser\Php7(new Lexer());
         $stmts = $parser->parse(canonicalize($code));
