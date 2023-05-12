@@ -3,6 +3,7 @@
 namespace PhpParser;
 
 use PhpParser\Node\Arg;
+use PhpParser\Node\Attribute;
 use PhpParser\Node\Expr;
 use PhpParser\Node\Expr\BinaryOp\Concat;
 use PhpParser\Node\Identifier;
@@ -26,6 +27,7 @@ class BuilderFactoryTest extends \PHPUnit\Framework\TestCase
             ['class',       Builder\Class_::class],
             ['interface',   Builder\Interface_::class],
             ['trait',       Builder\Trait_::class],
+            ['enum',        Builder\Enum_::class],
             ['method',      Builder\Method::class],
             ['function',    Builder\Function_::class],
             ['property',    Builder\Property::class],
@@ -33,7 +35,23 @@ class BuilderFactoryTest extends \PHPUnit\Framework\TestCase
             ['use',         Builder\Use_::class],
             ['useFunction', Builder\Use_::class],
             ['useConst',    Builder\Use_::class],
+            ['enumCase',    Builder\EnumCase::class],
         ];
+    }
+
+    public function testFactoryClassConst() {
+        $factory = new BuilderFactory;
+        $this->assertInstanceOf(Builder\ClassConst::class, $factory->classConst('TEST',1));
+    }
+
+    public function testAttribute() {
+        $factory = new BuilderFactory();
+        $this->assertEquals(
+            new Attribute(new Name('AttributeName'), [new Arg(
+                new String_('bar'), false, false, [], new Identifier('foo')
+            )]),
+            $factory->attribute('AttributeName', ['foo' => 'bar'])
+        );
     }
 
     public function testVal() {
@@ -88,6 +106,17 @@ class BuilderFactoryTest extends \PHPUnit\Framework\TestCase
                 $unpack
             ],
             $factory->args([new Expr\Variable('a'), 'b', $unpack])
+        );
+    }
+
+    public function testNamedArgs() {
+        $factory = new BuilderFactory();
+        $this->assertEquals(
+            [
+                new Arg(new String_('foo')),
+                new Arg(new String_('baz'), false, false, [], new Identifier('bar')),
+            ],
+            $factory->args(['foo', 'bar' => 'baz'])
         );
     }
 
@@ -246,6 +275,7 @@ class BuilderFactoryTest extends \PHPUnit\Framework\TestCase
                 ->class('SomeClass')
                 ->extend('SomeOtherClass')
                 ->implement('A\Few', '\Interfaces')
+                ->addAttribute($factory->attribute('ClassAttribute', ['repository' => 'fqcn']))
                 ->makeAbstract()
 
                 ->addStmt($factory->useTrait('FirstTrait'))
@@ -256,7 +286,9 @@ class BuilderFactoryTest extends \PHPUnit\Framework\TestCase
                     ->with($factory->traitUseAdaptation('AnotherTrait', 'baz')->as('test'))
                     ->with($factory->traitUseAdaptation('AnotherTrait', 'func')->insteadof('SecondTrait')))
 
-                ->addStmt($factory->method('firstMethod'))
+                ->addStmt($factory->method('firstMethod')
+                    ->addAttribute($factory->attribute('Route', ['/index', 'name' => 'homepage']))
+                )
 
                 ->addStmt($factory->method('someMethod')
                     ->makePublic()
@@ -270,13 +302,28 @@ class BuilderFactoryTest extends \PHPUnit\Framework\TestCase
 
                 ->addStmt($factory->method('anotherMethod')
                     ->makeProtected()
-                    ->addParam($factory->param('someParam')->setDefault('test'))
+                    ->addParam($factory->param('someParam')
+                        ->setDefault('test')
+                        ->addAttribute($factory->attribute('TaggedIterator', ['app.handlers']))
+                    )
                     ->addStmt(new Expr\Print_(new Expr\Variable('someParam'))))
 
                 ->addStmt($factory->property('someProperty')->makeProtected())
                 ->addStmt($factory->property('anotherProperty')
                     ->makePrivate()
-                    ->setDefault([1, 2, 3])))
+                    ->setDefault([1, 2, 3]))
+                ->addStmt($factory->property('integerProperty')
+                    ->setType('int')
+                    ->addAttribute($factory->attribute('Column', ['options' => ['unsigned' => true]]))
+                    ->setDefault(1))
+                ->addStmt($factory->classConst('CONST_WITH_ATTRIBUTE', 1)
+                    ->makePublic()
+                    ->addAttribute($factory->attribute('ConstAttribute'))
+                )
+
+                ->addStmt($factory->classConst("FIRST_CLASS_CONST", 1)
+                    ->addConst("SECOND_CLASS_CONST",2)
+                    ->makePrivate()))
             ->getNode()
         ;
 
@@ -289,6 +336,7 @@ use Foo\Bar\SomeOtherClass;
 use Foo\Bar as A;
 use function strlen;
 use const PHP_VERSION;
+#[ClassAttribute(repository: 'fqcn')]
 abstract class SomeClass extends SomeOtherClass implements A\Few, \Interfaces
 {
     use FirstTrait;
@@ -297,8 +345,14 @@ abstract class SomeClass extends SomeOtherClass implements A\Few, \Interfaces
         AnotherTrait::baz as test;
         AnotherTrait::func insteadof SecondTrait;
     }
+    #[ConstAttribute]
+    public const CONST_WITH_ATTRIBUTE = 1;
+    private const FIRST_CLASS_CONST = 1, SECOND_CLASS_CONST = 2;
     protected $someProperty;
     private $anotherProperty = array(1, 2, 3);
+    #[Column(options: array('unsigned' => true))]
+    public int $integerProperty = 1;
+    #[Route('/index', name: 'homepage')]
     function firstMethod()
     {
     }
@@ -308,7 +362,7 @@ abstract class SomeClass extends SomeOtherClass implements A\Few, \Interfaces
      * @param SomeClass And takes a parameter
      */
     public abstract function someMethod(SomeClass $someParam);
-    protected function anotherMethod($someParam = 'test')
+    protected function anotherMethod(#[TaggedIterator('app.handlers')] $someParam = 'test')
     {
         print $someParam;
     }

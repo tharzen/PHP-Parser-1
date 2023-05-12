@@ -3,8 +3,14 @@
 namespace PhpParser\Builder;
 
 use PhpParser\Node;
+use PhpParser\Node\Arg;
+use PhpParser\Node\Attribute;
+use PhpParser\Node\AttributeGroup;
 use PhpParser\Node\Expr;
+use PhpParser\Node\Identifier;
+use PhpParser\Node\Name;
 use PhpParser\Node\Scalar;
+use PhpParser\Node\Scalar\LNumber;
 
 class ParamTest extends \PHPUnit\Framework\TestCase
 {
@@ -171,7 +177,7 @@ class ParamTest extends \PHPUnit\Framework\TestCase
 
     public function testInvalidTypeError() {
         $this->expectException(\LogicException::class);
-        $this->expectExceptionMessage('Type must be a string, or an instance of Name, Identifier, NullableType or UnionType');
+        $this->expectExceptionMessage('Type must be a string, or an instance of Name, Identifier or ComplexType');
         $this->createParamBuilder('test')->setType(new \stdClass);
     }
 
@@ -195,6 +201,59 @@ class ParamTest extends \PHPUnit\Framework\TestCase
 
         $this->assertEquals(
             new Node\Param(new Expr\Variable('test'), null, null, false, true),
+            $node
+        );
+    }
+
+    public function testMakePublic() {
+        $node = $this->createParamBuilder('test')
+            ->makePublic()
+            ->getNode()
+        ;
+
+        $this->assertEquals(
+            new Node\Param(new Expr\Variable('test'), null, null, false, false, [], Node\Stmt\Class_::MODIFIER_PUBLIC),
+            $node
+        );
+    }
+
+    public function testMakeProtected() {
+        $node = $this->createParamBuilder('test')
+            ->makeProtected()
+            ->getNode()
+        ;
+
+        $this->assertEquals(
+            new Node\Param(new Expr\Variable('test'), null, null, false, false, [], Node\Stmt\Class_::MODIFIER_PROTECTED),
+            $node
+        );
+    }
+
+    public function testMakePrivate() {
+        $node = $this->createParamBuilder('test')
+            ->makePrivate()
+            ->getNode()
+        ;
+
+        $this->assertEquals(
+            new Node\Param(new Expr\Variable('test'), null, null, false, false, [], Node\Stmt\Class_::MODIFIER_PRIVATE),
+            $node
+        );
+    }
+
+    public function testAddAttribute() {
+        $attribute = new Attribute(
+            new Name('Attr'),
+            [new Arg(new LNumber(1), false, false, [], new Identifier('name'))]
+        );
+        $attributeGroup = new AttributeGroup([$attribute]);
+
+        $node = $this->createParamBuilder('attributeGroup')
+            ->addAttribute($attributeGroup)
+            ->getNode();
+
+        $this->assertEquals(
+            new Node\Param(new Expr\Variable('attributeGroup'), null, null, false, false, [], 0, [$attributeGroup]),
             $node
         );
     }

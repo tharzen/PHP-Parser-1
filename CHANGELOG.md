@@ -1,7 +1,159 @@
-Version 4.10.4-dev
-------------------
+Version 4.15.4 (2023-03-05)
+---------------------------
 
-Nothing yet.
+### Fixed
+
+* Fixed formatting-preservation for alternative if syntax with trailing comments.
+
+Version 4.15.3 (2023-01-16)
+---------------------------
+
+### Fixed
+
+* Support readonly property with PHP 8.2 DNF type.
+* Fixed PHP attribute group and PHP-Parser attribute mixup in EnumCase builder.
+
+Version 4.15.2 (2022-11-12)
+---------------------------
+
+### Fixed
+
+* Fixed parsing of large hex float literals that contain an "e" character.
+* Fixed tests to pass on 32-bit.
+* Fixed generation of invalid code when using formatting-preserving pretty printer with code that
+  uses inline HTML.
+
+Version 4.15.1 (2022-09-04)
+---------------------------
+
+### Fixed
+
+* Fixed formatting preservation when adding *multiple* attributes to a class/method/etc that
+  previously had none. This fixes a regression in the 4.15.0 release.
+
+Version 4.15.0 (2022-09-03)
+---------------------------
+
+### Added
+
+* PHP 8.2: Added support for `true` type.
+* PHP 8.2: Added support for DNF types.
+
+### Fixed
+
+* Support `readonly` as a function name.
+* Added `__serialize` and `__unserialize` to magic method list.
+* Fixed bounds check in `Name::slice()`.
+* Fixed formatting preservation when adding attributes to a class/method/etc that previously had none.
+
+Version 4.14.0 (2022-05-31)
+---------------------------
+
+### Added
+
+* Added support for readonly classes.
+* Added `rawValue` attribute to `LNumber`, `DNumber` and `String_` nodes, which stores the unparsed
+  value of the literal (e.g. `"1_000"` rather than `1000`).
+
+Version 4.13.2 (2021-11-30)
+---------------------------
+
+### Added
+
+* Added builders for enums and enum cases.
+
+### Fixed
+
+* NullsafeMethodCall now extends from CallLike.
+* The `namespacedName` property populated by the `NameResolver` is now declared on relevant nodes,
+  to avoid a dynamic property deprecation warning with PHP 8.2.
+
+Version 4.13.1 (2021-11-03)
+---------------------------
+
+### Fixed
+
+* Support reserved keywords as enum cases.
+* Support array unpacking in constant expression evaluator.
+
+Version 4.13.0 (2021-09-20)
+---------------------------
+
+### Added
+
+* [PHP 8.1] Added support for intersection types using a new `IntersectionType` node. Additionally
+  a `ComplexType` parent class for `NullableType`, `UnionType` and `IntersectionType` has been
+  added.
+* [PHP 8.1] Added support for explicit octal literals.
+* [PHP 8.1] Added support for first-class callables. These are represented using a call whose first
+  argument is a `VariadicPlaceholder`. The representation is intended to be forward-compatible with
+  partial function application, just like the PHP feature itself. Call nodes now extend from
+  `Expr\CallLike`, which provides an `isFirstClassCallable()` method to determine whether a
+  placeholder id present. `getArgs()` can be used to assert that the call is not a first-class
+  callable and returns `Arg[]` rather than `array<Arg|VariadicPlaceholder>`.
+
+### Fixed
+
+* Multiple modifiers for promoted properties are now accepted. In particular this allows something
+  like `public readonly` for promoted properties.
+* Formatting-preserving pretty printing for comments in array literals has been fixed.
+
+Version 4.12.0 (2021-07-21)
+---------------------------
+
+### Added
+
+* [PHP 8.1] Added support for readonly properties (through a new `MODIFIER_READONLY`).
+* [PHP 8.1] Added support for final class constants.
+
+### Fixed
+
+* Fixed compatibility with PHP 8.1. `&` tokens are now canonicalized to the
+  `T_AMPERSAND_FOLLOWED_BY_VAR_OR_VARARG` and `T_AMPERSAND_NOT_FOLLOWED_BY_VAR_OR_VARARG` tokens
+  used in PHP 8.1. This happens unconditionally, regardless of whether the emulative lexer is used.
+
+Version 4.11.0 (2021-07-03)
+---------------------------
+
+### Added
+
+* `BuilderFactory::args()` now accepts named arguments.
+* `BuilderFactory::attribute()` has been added.
+* An `addAttribute()` method accepting an `Attribute` or `AttributeGroup` has been adde to all
+  builders that accept attributes, such as `Builder\Class_`.
+
+### Fixed
+
+* `NameResolver` now handles enums.
+* `PrettyPrinter` now prints backing enum type.
+* Builder methods for types now property handle `never` type.
+
+Version 4.10.5 (2021-05-03)
+---------------------------
+
+### Added
+
+* [PHP 8.1] Added support for enums. These are represented using the `Stmt\Enum_` and
+  `Stmt\EnumCase` nodes.
+* [PHP 8.1] Added support for never type. This type will now be returned as an `Identifier` rather
+  than `Name`.
+* Added `ClassConst` builder.
+
+### Changed
+
+* Non-UTF-8 code units in strings will now be hex-encoded.
+
+### Fixed
+
+* Fixed precedence of arrow functions.
+
+Version 4.10.4 (2020-12-20)
+---------------------------
+
+### Fixed
+
+* Fixed position information for variable-variables (#741).
+* Fixed position information for traits/interfaces preceded by if statement (#738).
 
 Version 4.10.3 (2020-12-03)
 ---------------------------
