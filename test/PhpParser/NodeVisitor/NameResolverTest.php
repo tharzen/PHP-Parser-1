@@ -204,6 +204,13 @@ class A extends B implements C, D {
 interface A extends C, D {
     public function a(A $a) : A;
     public function b(A|B|int $a): A|B|int;
+    public function c(A&B $a): A&B;
+}
+
+#[X]
+enum E: int {
+    #[X]
+    case A = 1;
 }
 
 #[X]
@@ -262,6 +269,13 @@ interface A extends \NS\C, \NS\D
 {
     public function a(\NS\A $a) : \NS\A;
     public function b(\NS\A|\NS\B|int $a) : \NS\A|\NS\B|int;
+    public function c(\NS\A&\NS\B $a) : \NS\A&\NS\B;
+}
+#[\NS\X]
+enum E : int
+{
+    #[\NS\X]
+    case A = 1;
 }
 #[\NS\X]
 trait A
@@ -327,6 +341,7 @@ EOC;
             ]),
             new Stmt\Trait_('E'),
             new Expr\New_(new Stmt\Class_(null)),
+            new Stmt\Enum_('F'),
         ];
 
         $traverser = new PhpParser\NodeTraverser;
@@ -338,7 +353,8 @@ EOC;
         $this->assertSame('NS\\C', (string) $stmts[0]->stmts[2]->namespacedName);
         $this->assertSame('NS\\D', (string) $stmts[0]->stmts[3]->consts[0]->namespacedName);
         $this->assertSame('NS\\E', (string) $stmts[0]->stmts[4]->namespacedName);
-        $this->assertObjectNotHasAttribute('namespacedName', $stmts[0]->stmts[5]->class);
+        $this->assertNull($stmts[0]->stmts[5]->class->namespacedName);
+        $this->assertSame('NS\\F', (string) $stmts[0]->stmts[6]->namespacedName);
 
         $stmts = $traverser->traverse([new Stmt\Namespace_(null, $nsStmts)]);
         $this->assertSame('A',     (string) $stmts[0]->stmts[0]->namespacedName);
@@ -346,7 +362,8 @@ EOC;
         $this->assertSame('C',     (string) $stmts[0]->stmts[2]->namespacedName);
         $this->assertSame('D',     (string) $stmts[0]->stmts[3]->consts[0]->namespacedName);
         $this->assertSame('E',     (string) $stmts[0]->stmts[4]->namespacedName);
-        $this->assertObjectNotHasAttribute('namespacedName', $stmts[0]->stmts[5]->class);
+        $this->assertNull($stmts[0]->stmts[5]->class->namespacedName);
+        $this->assertSame('F',     (string) $stmts[0]->stmts[6]->namespacedName);
     }
 
     public function testAddRuntimeResolvedNamespacedName() {

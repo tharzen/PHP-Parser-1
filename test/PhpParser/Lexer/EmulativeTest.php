@@ -241,8 +241,8 @@ class EmulativeTest extends LexerTest
             ['1_000', [
                 [Tokens::T_LNUMBER, '1_000'],
             ]],
-            ['0xCAFE_F00D', [
-                [Tokens::T_LNUMBER, '0xCAFE_F00D'],
+            ['0x7AFE_F00D', [
+                [Tokens::T_LNUMBER, '0x7AFE_F00D'],
             ]],
             ['0b0101_1111', [
                 [Tokens::T_LNUMBER, '0b0101_1111'],
@@ -312,6 +312,61 @@ class EmulativeTest extends LexerTest
                 [Tokens::T_START_HEREDOC, "<<<LABEL\n"],
                 [Tokens::T_END_HEREDOC, "    LABEL"],
                 [ord(','), ','],
+            ]],
+            // Enums use a contextual keyword
+            ['enum Foo {}', [
+                [Tokens::T_ENUM, 'enum'],
+                [Tokens::T_STRING, 'Foo'],
+                [ord('{'), '{'],
+                [ord('}'), '}'],
+            ]],
+            ['class Enum {}', [
+                [Tokens::T_CLASS, 'class'],
+                [Tokens::T_STRING, 'Enum'],
+                [ord('{'), '{'],
+                [ord('}'), '}'],
+            ]],
+            ['class Enum extends X {}', [
+                [Tokens::T_CLASS, 'class'],
+                [Tokens::T_STRING, 'Enum'],
+                [Tokens::T_EXTENDS, 'extends'],
+                [Tokens::T_STRING, 'X'],
+                [ord('{'), '{'],
+                [ord('}'), '}'],
+            ]],
+            ['class Enum implements X {}', [
+                [Tokens::T_CLASS, 'class'],
+                [Tokens::T_STRING, 'Enum'],
+                [Tokens::T_IMPLEMENTS, 'implements'],
+                [Tokens::T_STRING, 'X'],
+                [ord('{'), '{'],
+                [ord('}'), '}'],
+            ]],
+            ['0o123', [
+                [Tokens::T_LNUMBER, '0o123'],
+            ]],
+            ['0O123', [
+                [Tokens::T_LNUMBER, '0O123'],
+            ]],
+            ['0o1_2_3', [
+                [Tokens::T_LNUMBER, '0o1_2_3'],
+            ]],
+            ['0o1000000000000000000000', [
+                [Tokens::T_DNUMBER, '0o1000000000000000000000'],
+            ]],
+            ['readonly class', [
+                [Tokens::T_READONLY, 'readonly'],
+                [Tokens::T_CLASS, 'class'],
+            ]],
+            ['function readonly(', [
+                [Tokens::T_FUNCTION, 'function'],
+                [Tokens::T_READONLY, 'readonly'],
+                [ord('('), '('],
+            ]],
+            ['function readonly (', [
+                [Tokens::T_FUNCTION, 'function'],
+                [Tokens::T_READONLY, 'readonly'],
+                [ord('('), '('],
             ]],
         ];
     }
