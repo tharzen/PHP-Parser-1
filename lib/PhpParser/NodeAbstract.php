@@ -3,7 +3,35 @@
 namespace PhpParser;
 
 abstract class NodeAbstract implements Node, \JsonSerializable
-{
+{   
+    // Used by PHP-Parser-1
+    public $attributes;
+
+    // Used by fullParse.php
+    public $parent;
+    public $parentAttributes;
+    public $source;
+
+    // Used by bam.php
+    public $allowAnyref;
+    public $classScope;
+    public $classStaticScope;
+    public $ctor;
+    public $duplicateValue;
+    public $expr;
+    public $fileName;
+    public $isGenerator;
+    public $isset_context;
+    public $namespace;
+    public $no_autoload;
+    public $remove_byref;
+    public $staticVars;
+    public $this;
+    public $use;
+    public $useConstant;
+    public $useFunction;
+    public $uses_computed;
+
     /**
      * Creates a Node.
      *

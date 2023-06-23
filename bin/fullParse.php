@@ -208,7 +208,7 @@ function bamSwitch(&$obj) { //should i go through arrays and bam items, some thi
         case "Scalar_LNumber":
             $numberInterval = Down(Interval($obj->attributes["startFilePos"],
                     $obj->attributes["endFilePos"] + 1));
-            $parentInterval = property_exists($obj, "parentAttributes") ? Down(Interval($obj->parentAttributes["startFilePos"], $obj->parentAttributes["endFilePos"] + 1)) : NULL;
+            $parentInterval = isset($obj->parentAttributes) ? Down(Interval($obj->parentAttributes["startFilePos"], $obj->parentAttributes["endFilePos"] + 1)) : NULL;
             $obj->value = Custom_ScalarLNumber([
               "number" => $numberInterval,
              "parentString" => $parentInterval,
@@ -217,7 +217,7 @@ function bamSwitch(&$obj) { //should i go through arrays and bam items, some thi
         case "Scalar_DNumber":
             $numberInterval = Down(Interval($obj->attributes["startFilePos"],
                     $obj->attributes["endFilePos"] + 1));
-            $parentInterval = property_exists($obj, "parentAttributes") ? Down(Interval($obj->parentAttributes["startFilePos"], $obj->parentAttributes["endFilePos"] + 1)) : NULL;
+            $parentInterval = isset($obj->parentAttributes) ? Down(Interval($obj->parentAttributes["startFilePos"], $obj->parentAttributes["endFilePos"] + 1)) : NULL;
             $obj->value = Custom_Scalar_DNumber([
               "number" => $numberInterval,
               "parentString" => $parentInterval,
