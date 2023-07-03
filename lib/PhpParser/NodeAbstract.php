@@ -8,17 +8,22 @@ abstract class NodeAbstract implements Node, \JsonSerializable
     public $attributes;
 
     // Used by fullParse.php
+    public $insteadOf;
     public $parent;
     public $parentAttributes;
     public $source;
 
     // Used by bam.php
     public $allowAnyref;
+    public $autoloading;
+    public $className;
     public $classScope;
     public $classStaticScope;
+    public $compute_reference;
     public $ctor;
     public $duplicateValue;
     public $expr;
+    public $fallthrough;
     public $fileName;
     public $isGenerator;
     public $isset_context;
@@ -27,6 +32,7 @@ abstract class NodeAbstract implements Node, \JsonSerializable
     public $remove_byref;
     public $staticVars;
     public $this;
+    public $traitScope;
     public $use;
     public $useConstant;
     public $useFunction;
